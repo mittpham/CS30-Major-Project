@@ -1,6 +1,6 @@
-// Project Title
-// Your Name
-// Date
+// Super Smash Bros Clone
+// Mitt Pham
+// April 16, 2026
 //
 // Extra for Experts:
 // - describe what you did to take this project "above and beyond"
