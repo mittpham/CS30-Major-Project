@@ -10,18 +10,18 @@
 - Collision detection (AABB collision, rectangle hitboxes and hurtboxes)
 
 # Nice to Have
-- Animations and sprites
 - Frame data
+- Animations and sprites
+- All smash character attacks
 - Advanced stats
 - Built-in game mechanics (shield, roll, airdodge, spotdodge, tech, getup attack, footstool)
 - Ledge mechanics (ledge grab, ledge invincibility, ledge options)
-- All smash character attacks
-- Sound effects
-- Menu screen
+- Camera movement
+- Blastzones
 - Different characters
 - Different stages
 - Character skins
 - Special effects
-- Camera movement
-- Blastzones
+- Sound effects
+- Menu screen
 - Hitbox and hurtbox shifting
