@@ -12,7 +12,10 @@
 
 // Things to do:
 // Get rid of magic numbers for keys
-// Fix fastfall condition
+// Fix color for fastfalling
+// Adjust marths stats
+// Fix the ratio for stage and canvas
+// Add landing lag for jumps - 4 frames
 
 // Canvas constants
 const SCREEN_WIDTH = 1920;
@@ -42,7 +45,7 @@ let marthStats = {
   fastFallSpeed: 12.8,
   shortHopPower: -12,
   fullHopPower: -15,
-  doubleJumpPower: -14,
+  doubleJumpPower: -15,
   weight: 90,
   color: "blue",
   dimension: 40,
@@ -59,15 +62,13 @@ class Player {
     this.stats = stats;
 
     // States
-    this.state = "airborne"; // idle, running, airborne, jumpsquat, hitsun, starting, active, ending
+    this.state = "airborne"; // idle, running, airborne, jumpsquat, landing, hitsun
 
     // Flags/Conditions
     this.direction = true;
     this.jumpSquatting = false;
     this.jumpAvailable = true;
     this.doubleJumpAvailable = false;
-    this.isAirborne = true;
-    this.grounded = false;
     this.fastFalling = false;
 
     // Timers
@@ -106,7 +107,7 @@ class Player {
 
       // Cap the fall speed if player isn't fast falling
       if (this.velocity.y > this.stats.fallSpeed && !this.fastFalling) {
-        this.velocity.limit(this.stats.fallSpeed);
+        this.velocity.y = this.stats.fallSpeed;
       }
       else if (this.fastFalling) {
         this.velocity.y = this.stats.fastFallSpeed;
@@ -129,10 +130,9 @@ class Player {
       // State behavior
       this.velocity.x = 0;
       this.addFriction();
+      this.stats.color = "blue";
 
       // State flags
-      this.grounded = true;
-      this.isAirborne = false;
       this.fastFalling = false;
 
       // State triggers
@@ -155,10 +155,9 @@ class Player {
       // State Behavior
       this.groundMovement();
       this.addFriction();
+      this.stats.color = "purple";
 
       // State flags
-      this.grounded = true;
-      this.isAirborne = false;
       this.fastFalling = false;
 
       // State triggers
@@ -180,6 +179,9 @@ class Player {
 
       // State behavior
       this.airMovement();
+      if (!this.fastFalling) {
+        this.stats.color = "pink";
+      }
 
       // State trigger
       if (this.position.y + this.stats.dimension / 2 >= STAGE_Y) {
@@ -193,6 +195,7 @@ class Player {
         this.jumpAvailable = true;
         this.doubleJumpAvailable = false;
         this.jumpSquatting = false;
+        this.fastFalling = false;
         this.jumpSquatTimer = 3;
       }
       break;
@@ -207,6 +210,15 @@ class Player {
       if (this.position.y + this.stats.dimension / 2 < STAGE_Y) {
         this.state = "airborne";
       }
+      break;
+
+    // Landing state behaviours and trigger
+    case "landing":
+
+      // State behaviour
+
+      // State trigger
+      
       break;
     }
   }
@@ -245,6 +257,10 @@ class Player {
     // Condition to fastfall is player is either at the peak of their jump or falling
     if (this.velocity.y >= 0) {
       this.fastFalling = true;
+
+      if (this.fastFalling) {
+        this.stats.color = "green";
+      }
     }
   }
 
@@ -255,7 +271,6 @@ class Player {
     this.stats.color = "red";
     if (this.jumpSquatTimer <= 0) {
       this.jumpSquatting = false;
-      this.stats.color = "blue";
       this.groundJump();
     }
   }
@@ -286,7 +301,8 @@ class Player {
     if (this.doubleJumpAvailable) {
       this.velocity.y = this.stats.doubleJumpPower;
 
-      // Disable double jump
+      // Disable double jump and fast falling
+      this.fastFalling = false;
       this.doubleJumpAvailable = false;
     }
   }
@@ -329,8 +345,6 @@ function draw() {
 
   // Display player
   player.display();
-
-  console.log(player.fastFalling);
 }
 
 // Handle player input
@@ -354,7 +368,7 @@ function keyPressed() {
   if (keyCode === 83) {
 
     // Check that player is airborne
-    if (player.isAirborne) {
+    if (player.state === "airborne") {
       player.fastFall();
     }
   }
