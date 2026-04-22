@@ -11,25 +11,29 @@
 // https://www.jeffreythompson.org/collision-detection/rect-rect.php - rect/rect collision detection
 
 // Things to do:
-// Get rid of magic numbers for keys
-// Fix color for fastfalling
 // Adjust marths stats
-// Fix the ratio for stage and canvas
+// Fix the ratio for stage - 1 meter in game is about 16 pixels
 // Add landing lag for jumps - 4 frames
 
 // Canvas constants
-const SCREEN_WIDTH = 1920;
-const SCREEN_HEIGHT = 1080;
+const SCREEN_WIDTH = 1280;
+const SCREEN_HEIGHT = 720;
 
 // Player constants and variables
 const SPAWN_X = 960;
 const SPAWN_Y = 150;
+const JUMPSQUAT_TIMER = 3;
+const LANDING_LAG_TIMER = 4;
+const A_KEY = 65;
+const D_KEY = 68;
+const W_KEY = 87;
+const S_KEY = 83;
 
 let player;
 
 // Stage constants and variables
-const STAGE_X = 560;
-const STAGE_Y = 750;
+const STAGE_X = 240;
+const STAGE_Y = 500;
 const STAGE_WIDTH = 800;
 const STAGE_HEIGHT = 50;
 
@@ -38,7 +42,7 @@ let marthStats = {
   runSpeed: 4,
   initialDash: 4.3,
   airAcceleration: 1,
-  airSpeed: 2.5,
+  airSpeed: 1.9,
   friction: 0.886,
   gravity: 0.6,
   fallSpeed: 8,
@@ -72,7 +76,8 @@ class Player {
     this.fastFalling = false;
 
     // Timers
-    this.jumpSquatTimer = 3;
+    this.jumpSquatTimer = JUMPSQUAT_TIMER;
+    this.landingLagTimer = LANDING_LAG_TIMER;
   }
 
   // Display the player
@@ -140,7 +145,7 @@ class Player {
         this.state = "jumpSquat";
       }
 
-      if (keyIsDown(65) || keyIsDown(68)) {
+      if (keyIsDown(A_KEY) || keyIsDown(D_KEY)) {
         this.state = "running";
       }
 
@@ -161,7 +166,7 @@ class Player {
       this.fastFalling = false;
 
       // State triggers
-      if (!keyIsDown(65) && !keyIsDown(68)) {
+      if (!keyIsDown(A_KEY) && !keyIsDown(D_KEY)) {
         this.state = "idle";
       }
 
@@ -185,18 +190,7 @@ class Player {
 
       // State trigger
       if (this.position.y + this.stats.dimension / 2 >= STAGE_Y) {
-        this.state = "idle";
-
-        // Reset velocity and snap to stage
-        this.velocity.y = 0;
-        this.position.y = STAGE_Y - this.stats.dimension / 2;
-
-        // Reset jumpsquat timer and jumps
-        this.jumpAvailable = true;
-        this.doubleJumpAvailable = false;
-        this.jumpSquatting = false;
-        this.fastFalling = false;
-        this.jumpSquatTimer = 3;
+        this.state = "landing";
       }
       break;
 
@@ -216,9 +210,25 @@ class Player {
     case "landing":
 
       // State behaviour
+      this.landingLagTimer --;
+      this.stats.color = "red";
+
+      // Reset velocity and snap to stage
+      this.velocity.y = 0;
+      this.position.y = STAGE_Y - this.stats.dimension / 2;
 
       // State trigger
-      
+      if (this.landingLagTimer <= 0) {
+        this.state = "idle";
+
+        // Reset jumpsquat timer and jumps
+        this.jumpAvailable = true;
+        this.doubleJumpAvailable = false;
+        this.jumpSquatting = false;
+        this.fastFalling = false;
+        this.jumpSquatTimer = JUMPSQUAT_TIMER;
+        this.landingLagTimer = LANDING_LAG_TIMER;
+      }
       break;
     }
   }
@@ -227,12 +237,12 @@ class Player {
   groundMovement() {
 
     // Move right
-    if (keyIsDown(68)) {
+    if (keyIsDown(D_KEY)) {
       this.acceleration.add(this.stats.initialDash, 0);
     }
 
     // Move left
-    if (keyIsDown(65)) {
+    if (keyIsDown(A_KEY)) {
       this.acceleration.add(-this.stats.initialDash, 0);
     }
   }
@@ -241,12 +251,12 @@ class Player {
   airMovement() {
 
     // Move right
-    if (keyIsDown(68)) {
+    if (keyIsDown(D_KEY)) {
       this.acceleration.add(this.stats.airAcceleration, 0);
     }
 
     // Move left
-    if (keyIsDown(65)) {
+    if (keyIsDown(A_KEY)) {
       this.acceleration.add(-this.stats.airAcceleration, 0);
     }
   }
@@ -266,7 +276,6 @@ class Player {
 
   // Pause before the player jumps
   prepareGroundJump() {
-    this.velocity.x = 0;
     this.jumpSquatTimer--;
     this.stats.color = "red";
     if (this.jumpSquatTimer <= 0) {
@@ -280,10 +289,7 @@ class Player {
     if (this.jumpAvailable) {
 
       // Determine jump height
-      if (keyIsDown(89) && keyIsDown(85)) {
-        this.velocity.y = this.stats.shortHopPower;
-      }
-      else if (keyIsDown(89) || keyIsDown(85)) {
+      if (keyIsDown(W_KEY)) {
         this.velocity.y = this.stats.fullHopPower;
       }
       else {
@@ -351,7 +357,7 @@ function draw() {
 function keyPressed() {
 
   // Jumping
-  if (keyCode === 89 || keyCode === 85) {
+  if (keyCode === W_KEY) {
 
     // Ground jump
     if (player.jumpAvailable) {
@@ -365,7 +371,7 @@ function keyPressed() {
   }
 
   // Fast falling
-  if (keyCode === 83) {
+  if (keyCode === S_KEY) {
 
     // Check that player is airborne
     if (player.state === "airborne") {
