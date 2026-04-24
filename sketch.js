@@ -14,16 +14,22 @@
 // Adjust marths stats
 // Fix the ratio for stage - 1 meter in game is about 16 pixels
 // Add landing lag for jumps - 4 frames
+// Fix macro shortcuts for easier jumps
+// Create a "blast zone"
+// Fix spawn and death
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
 const SCREEN_HEIGHT = 810;
 
 // Player constants and variables
-const SPAWN_X = 960;
-const SPAWN_Y = 150;
+const START_X = 720;
+const START_Y = 600;
+const SPAWN_X = 720;
+const SPAWN_Y = 200;
 const JUMPSQUAT_TIMER = 3;
 const LANDING_LAG_TIMER = 4;
+const PLAYER_STOCKS = 3;
 const A_KEY = 65;
 const D_KEY = 68;
 const W_KEY = 87;
@@ -39,6 +45,11 @@ const STAGE_Y = 600;
 const STAGE_WIDTH = 800;
 const STAGE_HEIGHT = 50;
 
+const TOP_BLAST_ZONE = -25;
+const BOTTOM_BLAST_ZONE = 835;
+const LEFT_BLAST_ZONE = -25;
+const RIGHT_BLAST_ZONE = 1465;
+
 // Marth stats
 let marthStats = {
   runSpeed: 4,
@@ -49,9 +60,9 @@ let marthStats = {
   gravity: 0.6,
   fallSpeed: 8,
   fastFallSpeed: 12.8,
-  shortHopPower: -25,
-  fullHopPower: -40,
-  doubleJumpPower: -40,
+  shortHopPower: -10,
+  fullHopPower: -15,
+  doubleJumpPower: -15,
   weight: 90,
   color: "blue",
   dimension: 40,
@@ -66,9 +77,11 @@ class Player {
     this.velocity = createVector(0, 0);
     this.acceleration = createVector(0, 0);
     this.stats = stats;
+    this.stocks = PLAYER_STOCKS;
+    this.percentage = 0;
 
     // States
-    this.state = "airborne"; // idle, running, airborne, jumpsquat, landing, hitsun
+    this.state = "idle"; // idle, running, airborne, jumpsquat, landing, dead, hitsun
 
     // Flags/Conditions
     this.direction = true;
@@ -76,6 +89,7 @@ class Player {
     this.jumpAvailable = true;
     this.doubleJumpAvailable = false;
     this.fastFalling = false;
+    this.invincible = false;
 
     // Timers
     this.jumpSquatTimer = JUMPSQUAT_TIMER;
@@ -154,6 +168,10 @@ class Player {
       if (this.position.y + this.stats.dimension / 2 < STAGE_Y) {
         this.state = "airborne";
       }
+
+      if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
+        this.state = "dead";
+      }
       break;
 
     // running state behaviors and triggers
@@ -179,6 +197,10 @@ class Player {
       if (this.position.y + this.stats.dimension / 2 < STAGE_Y) {
         this.state = "airborne";
       }
+
+      if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
+        this.state = "dead";
+      }
       break;
 
     // airborne state behaviors and triggers
@@ -190,9 +212,17 @@ class Player {
         this.stats.color = "pink";
       }
 
-      // State trigger
+      // State triggers
       if (this.position.y + this.stats.dimension / 2 >= STAGE_Y) {
         this.state = "landing";
+
+        // Reset velocity and snap to stage
+        this.velocity.y = 0;
+        this.position.y = STAGE_Y - this.stats.dimension / 2;
+      }
+
+      if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
+        this.state = "dead";
       }
       break;
 
@@ -201,10 +231,15 @@ class Player {
 
       // State behavior
       this.prepareGroundJump();
+      this.addFriction();
 
-      // State trigger
+      // State triggers
       if (this.position.y + this.stats.dimension / 2 < STAGE_Y) {
         this.state = "airborne";
+      }
+
+      if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
+        this.state = "dead";
       }
       break;
 
@@ -212,14 +247,11 @@ class Player {
     case "landing":
 
       // State behaviour
-      this.landingLagTimer --;
+      this.addFriction();
+      this.landingLagTimer--;
       this.stats.color = "red";
 
-      // Reset velocity and snap to stage
-      this.velocity.y = 0;
-      this.position.y = STAGE_Y - this.stats.dimension / 2;
-
-      // State trigger
+      // State triggers
       if (this.landingLagTimer <= 0) {
         this.state = "idle";
 
@@ -231,8 +263,33 @@ class Player {
         this.jumpSquatTimer = JUMPSQUAT_TIMER;
         this.landingLagTimer = LANDING_LAG_TIMER;
       }
+
+      if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
+        this.state = "dead";
+      }
+      break;
+
+    // Dead state behavior
+    case "dead":
+
+      // State behavior
+      this.resetPlayer();
+      break;
+
+    // Spawning state behavior
+    case "spawning":
+
+      // State behavior
+      this.angelPlatform();
+
+      // State triggers
+      if (keyPressed()) {
+        this.state = "airborne";
+      }
+
       break;
     }
+
   }
 
   // Move player on the stage
@@ -241,11 +298,13 @@ class Player {
     // Move right
     if (keyIsDown(D_KEY)) {
       this.acceleration.add(this.stats.initialDash, 0);
+      this.direction = true;
     }
 
     // Move left
     if (keyIsDown(A_KEY)) {
       this.acceleration.add(-this.stats.initialDash, 0);
+      this.direction = false;
     }
   }
 
@@ -255,11 +314,13 @@ class Player {
     // Move right
     if (keyIsDown(D_KEY)) {
       this.acceleration.add(this.stats.airAcceleration, 0);
+      this.direction = true;
     }
 
     // Move left
     if (keyIsDown(A_KEY)) {
       this.acceleration.add(-this.stats.airAcceleration, 0);
+      this.direction = false;
     }
   }
 
@@ -336,12 +397,31 @@ class Player {
     }
     if (this.state === "airborne") {
       this.velocity.x = constrain(this.velocity.x, -this.stats.airSpeed, this.stats.airSpeed);
-      this.velocity.y = constrain(this.velocity.y, -this.stats.fallSpeed, this.stats.fallSpeed);
-
-      if (this.fastFalling) {
-        this.velocity.y = constrain(this.velocity.y, -this.stats.fastFallSpeed, this.stats.fastFallSpeed);
-      }
     }
+  }
+
+  // Reset player if dead
+  resetPlayer() {
+
+    // Reset player position
+    this.position.x = SPAWN_X;
+    this.position.y = SPAWN_Y;
+
+    // Reset player states and flags
+    this.percentage = 0;
+    this.direction = true;
+    this.jumpSquatting = false;
+    this.jumpAvailable = false;
+    this.doubleJumpAvailable = true;
+    this.fastFalling = false;
+    this.invincible = true;
+    this.state = "spawning";
+  }
+
+  // Put player on the angel platform and prevent all damage until input
+  angelPlatform() {
+
+    // 
   }
 }
 
@@ -350,7 +430,7 @@ function setup() {
   createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
   // Create player
-  player = new Player(SPAWN_X, SPAWN_Y, marthStats);
+  player = new Player(START_X, START_Y - marthStats.dimension / 2, marthStats);
 }
 
 // Manage players
@@ -367,6 +447,8 @@ function draw() {
 
   // Display player
   player.display();
+
+  console.log(player.direction);
 }
 
 // Handle player input
