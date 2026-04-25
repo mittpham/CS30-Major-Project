@@ -15,10 +15,8 @@
 // Fix the ratio for stage - 1 meter in game is about 16 pixels
 // Add landing lag for jumps - 4 frames
 // Create a "blast zone"
-// Fix spawn and death
 // prevent negative stocks
-// Turn stage collision into aabb to fall off the side
-// Add crouching
+// Fix double jump off stage
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
@@ -69,7 +67,8 @@ let marthStats = {
   doubleJumpPower: -15,
   weight: 90,
   color: "blue",
-  dimension: 40,
+  width: 40,
+  height: 80,
 };
 
 // Create the base player
@@ -111,7 +110,7 @@ class Player {
     // Square to represent the player
     noStroke();
     fill(this.stats.color);
-    square(this.position.x, this.position.y, this.stats.dimension);
+    rect(this.position.x, this.position.y, this.stats.width, this.stats.height);
   }
 
   // Update the player’s state and movement
@@ -120,7 +119,7 @@ class Player {
     // Constant gravity
     this.addGravity();
 
-    // Invincibility timer
+    // Count down invincibility from angel platform
     this.countInvincibility();
 
     // Check state and behavior
@@ -130,9 +129,22 @@ class Player {
     this.addVectors();
   }
 
+  // Check if the player is touching the stage
+  checkStageCollision() {
+    if (this.position.x + this.stats.width / 2 >= STAGE_X &&
+    this.position.x - this.stats.width / 2 <= STAGE_X + STAGE_WIDTH &&
+    this.position.y + this.stats.height / 2 >= STAGE_Y && 
+    this.position.y + this.stats.height / 2 <= STAGE_Y + STAGE_HEIGHT) {
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+
   // Add gravity to player
   addGravity() {
-    if (this.position.y + this.stats.dimension / 2 < STAGE_Y && this.state !== "spawning") {
+    if (!this.checkStageCollision() && this.state !== "spawning") {
       this.velocity.y += this.stats.gravity;
 
       // Cap the fall speed if player isn't fast falling
@@ -147,9 +159,11 @@ class Player {
 
   // Count down timer for 5 seconds from spawning before removing i-frames
   countInvincibility() {
-    this.invincibilityTimer--;
-    if (this.invincibilityTimer <= 0) {
-      this.invincible = false;
+    if (this.invincible && this.state !== "spawning" && this.state !== "dead") {
+      this.invincibilityTimer--;
+      if (this.invincibilityTimer <= 0) {
+        this.invincible = false;
+      }
     }
   }
 
@@ -184,7 +198,7 @@ class Player {
         this.state = "running";
       }
 
-      if (this.position.y + this.stats.dimension / 2 < STAGE_Y) {
+      if (!this.checkStageCollision()) {
         this.state = "airborne";
       }
 
@@ -216,7 +230,7 @@ class Player {
         this.state = "jumpSquat";
       }
 
-      if (this.position.y + this.stats.dimension / 2 < STAGE_Y) {
+      if (!this.checkStageCollision()) {
         this.state = "airborne";
       }
 
@@ -236,12 +250,12 @@ class Player {
       }
 
       // State triggers
-      if (this.position.y + this.stats.dimension / 2 >= STAGE_Y) {
+      if (this.checkStageCollision()) {
         this.state = "landing";
 
         // Reset velocity and snap to stage
         this.velocity.y = 0;
-        this.position.y = STAGE_Y - this.stats.dimension / 2;
+        this.position.y = STAGE_Y - this.stats.height / 2;
       }
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
@@ -258,7 +272,7 @@ class Player {
       this.addFriction();
 
       // State triggers
-      if (this.position.y + this.stats.dimension / 2 < STAGE_Y) {
+      if (!this.checkStageCollision()) {
         this.state = "airborne";
       }
 
@@ -301,11 +315,11 @@ class Player {
     case "dead":
 
       // State behavior
-      this.resetPlayer();
       this.spawningTimer--;
 
       // State trigger
       if (this.spawningTimer <= 0) {
+        this.resetPlayer();
         this.state = "spawning";
       }
 
@@ -318,21 +332,13 @@ class Player {
       this.angelPlatform();
 
       // State triggers
-      if (keyIsDown(W_KEY) || keyIsDown(Q_KEY)) {
-        this.state = "airborne";
-        this.doubleJump();
-        this.countInvincibility();
-      }
-
       if (keyIsDown(S_KEY)) {
         this.state = "airborne";
         this.fastFalling = true;
-        this.countInvincibility();
       }
 
       if (keyIsDown(A_KEY) || keyIsDown(D_KEY)) {
         this.state = "airborne";
-        this.countInvincibility();
       }
       break;
     }
@@ -454,6 +460,10 @@ class Player {
     this.doubleJumpAvailable = true;
     this.fastFalling = false;
     this.invincible = true;
+
+    // Reset timers
+    this.invincibilityTimer = INVINCIBILITY_TIMER;
+    this.spawningTimer = SPAWNING_TIMER;
   }
 
   // Put player on the angel platform and prevent all damage until input
@@ -479,7 +489,12 @@ function setup() {
   createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
   // Create player
-  player = new Player(START_X, START_Y - marthStats.dimension / 2, marthStats);
+  player = new Player(START_X, START_Y - marthStats.height / 2, marthStats);
+
+  // Create stage
+  rectMode(CORNER);
+  fill("white");
+  rect(STAGE_X, STAGE_Y, STAGE_WIDTH, STAGE_HEIGHT);
 }
 
 // Manage players
@@ -499,7 +514,6 @@ function draw() {
 
   // console.log(player.invincible);
   // console.log(player.stats.color);
-  console.log(player.stocks);
 }
 
 // Handle player input
@@ -508,8 +522,14 @@ function keyPressed() {
   // Jumping
   if (keyCode === W_KEY || keyCode === Q_KEY) {
 
+    // Angel platform jump
+    if (player.state === "spawning") {
+      player.state = "airborne";
+      player.doubleJump();
+    }
+
     // Ground jump
-    if (player.jumpAvailable) {
+    else if (player.jumpAvailable) {
       player.jumpSquatting = true;
     }
 
