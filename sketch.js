@@ -16,7 +16,8 @@
 // Add landing lag for jumps - 4 frames
 // Create a "blast zone"
 // prevent negative stocks
-// Fix double jump off stage
+// Fix stage collision
+// Fix stage clipping when fastfalling
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
@@ -30,7 +31,8 @@ const SPAWN_Y = 200;
 const JUMPSQUAT_TIMER = 3;
 const LANDING_LAG_TIMER = 4;
 const SPAWNING_TIMER = 30;
-const INVINCIBILITY_TIMER = 300;
+const INVINCIBILITY_TIMER = 120;
+const ANGEL_PLATFORM_TIMER = 300;
 const PLAYER_STOCKS = 3;
 const A_KEY = 65;
 const D_KEY = 68;
@@ -93,12 +95,17 @@ class Player {
     this.doubleJumpAvailable = false;
     this.fastFalling = false;
     this.invincible = false;
+    this.touchingTop = false;
+    this.touchingLeft = false;
+    this.touchingRight = false;
+    this.touchingBottom = false;
 
     // Timers
     this.jumpSquatTimer = JUMPSQUAT_TIMER;
     this.landingLagTimer = LANDING_LAG_TIMER;
     this.spawningTimer = SPAWNING_TIMER;
     this.invincibilityTimer = INVINCIBILITY_TIMER;
+    this.angelPlatformTimer = ANGEL_PLATFORM_TIMER;
   }
 
   // Display the player
@@ -116,6 +123,9 @@ class Player {
   // Update the player’s state and movement
   update() {
 
+    // Check for collisions
+    this.checkStageCollision(); 
+
     // Constant gravity
     this.addGravity();
 
@@ -131,20 +141,44 @@ class Player {
 
   // Check if the player is touching the stage
   checkStageCollision() {
-    if (this.position.x + this.stats.width / 2 >= STAGE_X &&
-    this.position.x - this.stats.width / 2 <= STAGE_X + STAGE_WIDTH &&
-    this.position.y + this.stats.height / 2 >= STAGE_Y && 
-    this.position.y + this.stats.height / 2 <= STAGE_Y + STAGE_HEIGHT) {
+
+    // Return true if the player is touching a side of the stage, as well as which side they are touching
+    if (this.position.y + this.stats.height / 2 >= STAGE_Y) {
+      this.touchingTop = true;
+      this.position.y = STAGE_Y;
       return true;
     }
+
+    else if (this.position.y + this.stats.height / 2 <= STAGE_Y + STAGE_HEIGHT) {
+      this.touchingBottom = true;
+      this.position.y = STAGE_Y + STAGE_HEIGHT;
+      return true;
+    }
+
+    else if (this.position.x + this.stats.width / 2 >= STAGE_X) {
+      this.touchingLeft = true;
+      this.position.x = STAGE_X;
+      return true;
+    }
+
+    else if (this.position.x - this.stats.width / 2 <= STAGE_X + STAGE_WIDTH) {
+      this.touchingRight = true;
+      this.position.x = STAGE_X + STAGE_WIDTH;
+      return true;
+    }
+
     else {
+      this.touchingTop = false;
+      this.touchingLeft = false;
+      this.touchingRight = false;
+      this.touchingBottom = false;
       return false;
     }
   }
 
   // Add gravity to player
   addGravity() {
-    if (!this.checkStageCollision() && this.state !== "spawning") {
+    if (!this.touchingTop && this.state !== "spawning") {
       this.velocity.y += this.stats.gravity;
 
       // Cap the fall speed if player isn't fast falling
@@ -198,8 +232,10 @@ class Player {
         this.state = "running";
       }
 
-      if (!this.checkStageCollision()) {
+      if (!this.touchingTop) {
         this.state = "airborne";
+        this.jumpAvailable = false;
+        this.doubleJumpAvailable = true;
       }
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
@@ -230,8 +266,10 @@ class Player {
         this.state = "jumpSquat";
       }
 
-      if (!this.checkStageCollision()) {
+      if (!this.touchingTop) {
         this.state = "airborne";
+        this.jumpAvailable = false;
+        this.doubleJumpAvailable = true;
       }
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
@@ -250,7 +288,7 @@ class Player {
       }
 
       // State triggers
-      if (this.checkStageCollision()) {
+      if (this.touchingTop) {
         this.state = "landing";
 
         // Reset velocity and snap to stage
@@ -272,7 +310,7 @@ class Player {
       this.addFriction();
 
       // State triggers
-      if (!this.checkStageCollision()) {
+      if (!this.touchingTop) {
         this.state = "airborne";
       }
 
@@ -337,7 +375,8 @@ class Player {
         this.fastFalling = true;
       }
 
-      if (keyIsDown(A_KEY) || keyIsDown(D_KEY)) {
+      if (keyIsDown(A_KEY) || keyIsDown(D_KEY) || this.angelPlatformTimer <= 0) {
+        this.angelPlatformTimer = 300;
         this.state = "airborne";
       }
       break;
@@ -468,6 +507,9 @@ class Player {
 
   // Put player on the angel platform and prevent all damage until input
   angelPlatform() {
+
+    // Start the timer for how long you can stay on the angel platform
+    this.angelPlatformTimer--;
 
     // Reset player position
     this.position.x = SPAWN_X;
