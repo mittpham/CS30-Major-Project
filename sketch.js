@@ -9,6 +9,7 @@
 // https://editor.p5js.org/shfitz/sketches/8s9FLdrai - switch and case
 // https://ultimateframedata.com/stats - character statistics
 // https://www.jeffreythompson.org/collision-detection/rect-rect.php - rect/rect collision detection
+// https://editor.p5js.org/jesse_harding/sketches/dzF-WbKuk - platform collision
 
 // Things to do:
 // Adjust marths stats
@@ -142,37 +143,55 @@ class Player {
   // Check if the player is touching the stage
   checkStageCollision() {
 
-    // Return true if the player is touching a side of the stage, as well as which side they are touching
-    if (this.position.y + this.stats.height / 2 >= STAGE_Y) {
-      this.touchingTop = true;
-      this.position.y = STAGE_Y;
-      return true;
-    }
+    // Player edges
+    let playerBottom = this.position.y + this.stats.height / 2;
+    let playerTop = this.position.y - this.stats.height / 2;
+    let playerRight = this.position.x + this.stats.width / 2;
+    let playerLeft = this.position.x - this.stats.width / 2;
 
-    else if (this.position.y + this.stats.height / 2 <= STAGE_Y + STAGE_HEIGHT) {
-      this.touchingBottom = true;
-      this.position.y = STAGE_Y + STAGE_HEIGHT;
-      return true;
-    }
+    // Stage edges
+    let stageBottom = STAGE_Y + STAGE_HEIGHT;
+    let stageTop = STAGE_Y;
+    let stageRight = STAGE_X + STAGE_WIDTH;
+    let stageLeft = STAGE_X;
 
-    else if (this.position.x + this.stats.width / 2 >= STAGE_X) {
-      this.touchingLeft = true;
-      this.position.x = STAGE_X;
-      return true;
-    }
+    // Reset touching flags
+    this.touchingTop = false;
+    this.touchingLeft = false;
+    this.touchingRight = false;
+    this.touchingBottom = false;
 
-    else if (this.position.x - this.stats.width / 2 <= STAGE_X + STAGE_WIDTH) {
-      this.touchingRight = true;
-      this.position.x = STAGE_X + STAGE_WIDTH;
-      return true;
-    }
-
-    else {
-      this.touchingTop = false;
-      this.touchingLeft = false;
-      this.touchingRight = false;
-      this.touchingBottom = false;
-      return false;
+    // First check if there is any collision and then detect which side is the closest
+    if (playerBottom >= stageTop && playerTop <= stageBottom && playerRight >= stageLeft && playerLeft <= stageRight) {
+      
+      // Return true if the player is touching a side of the stage, as well as which side they are touching
+      if (playerBottom >= stageTop) {
+        this.touchingTop = true;
+        this.position.y = stageTop - this.stats.height / 2;
+        return true;
+      }
+  
+      else if (playerTop <= stageBottom) {
+        this.touchingBottom = true;
+        this.position.y = stageBottom + this.stats.height / 2;
+        return true;
+      }
+  
+      else if (playerRight >= stageLeft) {
+        this.touchingLeft = true;
+        this.position.x = stageLeft - this.stats.width / 2;
+        return true;
+      }
+  
+      else if (playerLeft <= stageRight) {
+        this.touchingRight = true;
+        this.position.x = stageRight + this.stats.width / 2;
+        return true;
+      }
+  
+      else {
+        return false;
+      }
     }
   }
 
