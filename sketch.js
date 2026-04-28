@@ -17,8 +17,6 @@
 // Add landing lag for jumps - 4 frames
 // Create a "blast zone"
 // prevent negative stocks
-// Fix stage collision
-// Fix stage clipping when fastfalling
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
@@ -144,7 +142,7 @@ class Player {
   checkStageCollision() {
 
     // Player edges
-    let playerBottom = this.position.y + this.stats.height / 2;
+    let playerBottom = this.position.y + this.stats.height / 2 + this.velocity.y;
     let playerTop = this.position.y - this.stats.height / 2;
     let playerRight = this.position.x + this.stats.width / 2;
     let playerLeft = this.position.x - this.stats.width / 2;
@@ -156,34 +154,42 @@ class Player {
     let stageLeft = STAGE_X;
 
     // Reset touching flags
-    this.touchingTop = false;
-    this.touchingLeft = false;
-    this.touchingRight = false;
     this.touchingBottom = false;
+    this.touchingTop = false;
+    this.touchingRight = false;
+    this.touchingLeft = false;
 
     // First check if there is any collision and then detect which side is the closest
     if (playerBottom >= stageTop && playerTop <= stageBottom && playerRight >= stageLeft && playerLeft <= stageRight) {
+
+      let bottomOverlap = stageBottom - playerTop;
+      let topOverlap = playerBottom - stageTop;
+      let rightOverlap = stageRight - playerLeft;
+      let leftOverlap = playerRight - stageLeft;
+
+      let minimumOverlap = Math.min(bottomOverlap, topOverlap, rightOverlap, leftOverlap);
       
       // Return true if the player is touching a side of the stage, as well as which side they are touching
-      if (playerBottom >= stageTop) {
+      if (minimumOverlap === topOverlap) {
         this.touchingTop = true;
         this.position.y = stageTop - this.stats.height / 2;
         return true;
       }
   
-      else if (playerTop <= stageBottom) {
+      else if (minimumOverlap === bottomOverlap) {
         this.touchingBottom = true;
         this.position.y = stageBottom + this.stats.height / 2;
+        this.velocity.y = 0;
         return true;
       }
   
-      else if (playerRight >= stageLeft) {
+      else if (minimumOverlap === leftOverlap) {
         this.touchingLeft = true;
         this.position.x = stageLeft - this.stats.width / 2;
         return true;
       }
-  
-      else if (playerLeft <= stageRight) {
+      
+      else if (minimumOverlap === rightOverlap) {
         this.touchingRight = true;
         this.position.x = stageRight + this.stats.width / 2;
         return true;
