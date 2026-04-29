@@ -87,7 +87,7 @@ class Player {
     this.percentage = 0;
 
     // States
-    this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, hitsun
+    this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, attacking
 
     // Flags/Conditions
     this.direction = true;
@@ -107,6 +107,7 @@ class Player {
     this.spawningTimer = SPAWNING_TIMER;
     this.invincibilityTimer = INVINCIBILITY_TIMER;
     this.angelPlatformTimer = ANGEL_PLATFORM_TIMER;
+    this.attackFrameTimer = 0;
   }
 
   // Display the player
@@ -336,7 +337,6 @@ class Player {
         if (keyIsDown(A_KEY) || keyIsDown(D_KEY)) {
           this.state = "running";
           this.stats.height = 80;
-          this.position.y -= 20;
         }
       } 
 
@@ -411,6 +411,15 @@ class Player {
         this.state = "dead";
         this.stocks--;
       }
+      break;
+
+    // attacking state behavior
+    case "attacking":
+
+      // State behavior
+
+      // State triggers
+
       break;
 
     // Dead state behavior
@@ -596,6 +605,20 @@ class Player {
     if (this.invincible) {
       this.stats.color = "white";
     }
+  }
+}
+
+// Create an attack
+class Attack {
+  constructor(playerX, playerY, attackWidth, attackHeight, attackDamage, attackKnockback) {
+
+    // Attack properties
+    this.x = playerX;
+    this.y = playerY;
+    this.w = attackWidth;
+    this.h = attackHeight;
+    this.damage = attackDamage;
+    this.knockback = attackKnockback;
   }
 }
 
