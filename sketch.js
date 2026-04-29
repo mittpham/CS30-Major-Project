@@ -10,6 +10,7 @@
 // https://ultimateframedata.com/stats - character statistics
 // https://www.jeffreythompson.org/collision-detection/rect-rect.php - rect/rect collision detection
 // https://editor.p5js.org/jesse_harding/sketches/dzF-WbKuk - platform collision
+// https://blog.hamaluik.ca/posts/simple-aabb-collision-using-minkowski-difference/ - Minkowksi difference
 
 // Things to do:
 // Adjust marths stats
@@ -143,9 +144,9 @@ class Player {
 
     // Player edges
     let playerBottom = this.position.y + this.stats.height / 2 + this.velocity.y;
-    let playerTop = this.position.y - this.stats.height / 2;
-    let playerRight = this.position.x + this.stats.width / 2;
-    let playerLeft = this.position.x - this.stats.width / 2;
+    let playerTop = this.position.y - this.stats.height / 2 + this.velocity.y;
+    let playerRight = this.position.x + this.stats.width / 2 + this.velocity.x;
+    let playerLeft = this.position.x - this.stats.width / 2 + this.velocity.x;
 
     // Stage edges
     let stageBottom = STAGE_Y + STAGE_HEIGHT;
@@ -578,9 +579,6 @@ function draw() {
 
   // Display player
   player.display();
-
-  // console.log(player.invincible);
-  // console.log(player.stats.color);
 }
 
 // Handle player input
