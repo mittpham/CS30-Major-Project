@@ -18,6 +18,7 @@
 // Add landing lag for jumps - 4 frames
 // Create a "blast zone"
 // prevent negative stocks
+// fix crouching
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
@@ -57,7 +58,7 @@ const RIGHT_BLAST_ZONE = 1465;
 // Marth stats
 let marthStats = {
   runSpeed: 4,
-  initialDash: 4.3,
+  initialDash: 5,
   airAcceleration: 1,
   airSpeed: 2.4,
   friction: 0.886,
@@ -258,6 +259,12 @@ class Player {
         this.state = "running";
       }
 
+      if (keyIsDown(S_KEY)) {
+        this.state = "crouching";
+        this.stats.height = 40;
+        this.position.y += 20;
+      }
+
       if (!this.touchingTop) {
         this.state = "airborne";
         this.jumpAvailable = false;
@@ -288,6 +295,12 @@ class Player {
         this.state = "idle";
       }
 
+      if (keyIsDown(S_KEY)) {
+        this.state = "crouching";
+        this.stats.height = 40;
+        this.position.y += 20;
+      }
+
       if (this.jumpSquatting) {
         this.state = "jumpSquat";
       }
@@ -302,6 +315,31 @@ class Player {
         this.state = "dead";
         this.stocks--;
       }
+      break;
+
+      // crouching state behaviors and triggers
+    case "crouching":
+
+      // State behaviours
+      this.addFriction();
+      if (!this.invincible) {
+        this.stats.color = "orange";
+      }
+
+      // State triggers
+      
+      if (!keyIsDown(S_KEY)) {
+        this.state = "idle";
+        this.stats.height = 80;
+        this.position.y -= 20;
+
+        if (keyIsDown(A_KEY) || keyIsDown(D_KEY)) {
+          this.state = "running";
+          this.stats.height = 80;
+          this.position.y -= 20;
+        }
+      } 
+
       break;
 
     // airborne state behaviors and triggers
@@ -426,6 +464,14 @@ class Player {
     }
   }
 
+  // make the player smaller
+  crouch() {
+    if (keyIsDown(S_KEY)) {
+      this.stats.height = 40;
+      this.position.y += 40;
+    }
+  }
+
   // Move player in the air
   airMovement() {
 
@@ -525,6 +571,7 @@ class Player {
     this.doubleJumpAvailable = true;
     this.fastFalling = false;
     this.invincible = true;
+    this.stats.height = 80;
 
     // Reset timers
     this.invincibilityTimer = INVINCIBILITY_TIMER;
