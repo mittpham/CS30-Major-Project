@@ -11,9 +11,12 @@
 // https://www.jeffreythompson.org/collision-detection/rect-rect.php - rect/rect collision detection
 // https://editor.p5js.org/jesse_harding/sketches/dzF-WbKuk - platform collision
 // https://blog.hamaluik.ca/posts/simple-aabb-collision-using-minkowski-difference/ - Minkowksi difference
+// https://www.youtube.com/watch?v=CxvdO_kkXmY - smash bros knockback explanation
 // https://www.ssbwiki.com/Knockback - smash knockback formula
 // https://kuroganehammer.com/Ultimate/Marth - Marth knockback and damage values
 // https://www.youtube.com/playlist?list=PLf9yt-2olqyLxr-vouWl-qk4toUfjF2LC - street fighter clone
+// https://www.ssbwiki.com/Hitstun - hitstun
+// https://www.ssbwiki.com/Tumbling - tumbling
 
 // Things to do:
 // Adjust marths stats
@@ -44,6 +47,7 @@ const W_KEY = 87;
 const S_KEY = 83;
 const Q_KEY = 81;
 const E_KEY = 69;
+const U_KEY = 85;
 
 let player;
 
@@ -75,6 +79,17 @@ let marthStats = {
   color: "blue",
   width: 40,
   height: 80,
+};
+
+// Marth attacks
+let marthForwardTilt = {
+  offsetX: 10,
+  offsetY: 20,
+  width: 40,
+  height: 30,
+  startingFrames: 8,
+  activeFrames: 3,
+  endingFrames: 22,
 };
 
 // Create the base player
@@ -612,16 +627,28 @@ class Player {
 
 // Create an attack
 class Attack {
-  constructor(playerDirection, playerX, playerY, attackOffsetX, attackOffsetY, attackWidth, 
-    attackHeight, attackDamage, attackBaseKnockback, attackFrames, attackAngle, attackGrowthKnockBack) {
+  constructor(playerDirection, playerX, playerY, attackOffsetX, attackOffsetY, attackWidth, attackHeight, attackDamage, 
+    attackStartingFrames, attackActiveFrames, attackEndingFrames, attackAngle, attackBaseKnockback, attackGrowthKnockBack) {
 
     // Attack properties
     this.x = playerX;
     this.y = playerY;
+    this.offsetX = attackOffsetX;
+    this.offsetY = attackOffsetY;
     this.w = attackWidth;
     this.h = attackHeight;
     this.damage = attackDamage;
     this.knockback = attackBaseKnockback;
+  }
+
+  // Show the hitbox for the attack
+  display() {
+    rect(this.x, this.y, this.w, this.h);
+  }
+
+  update() {
+    this.x = player.position.x;
+    this.y = player.position.y;
   }
 }
 
@@ -654,7 +681,7 @@ function draw() {
   player.display();
 }
 
-// Handle player input
+// Handle player input for single events
 function keyPressed() {
 
   // Jumping
@@ -684,6 +711,11 @@ function keyPressed() {
     if (player.state === "airborne") {
       player.fastFall();
     }
+  }
+
+  // Attacking
+  if (keyCode === U_KEY) {
+    player.spawnHitbox();
   }
 }
 
