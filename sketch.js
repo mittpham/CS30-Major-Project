@@ -11,6 +11,9 @@
 // https://www.jeffreythompson.org/collision-detection/rect-rect.php - rect/rect collision detection
 // https://editor.p5js.org/jesse_harding/sketches/dzF-WbKuk - platform collision
 // https://blog.hamaluik.ca/posts/simple-aabb-collision-using-minkowski-difference/ - Minkowksi difference
+// https://www.ssbwiki.com/Knockback - smash knockback formula
+// https://kuroganehammer.com/Ultimate/Marth - Marth knockback and damage values
+// https://www.youtube.com/playlist?list=PLf9yt-2olqyLxr-vouWl-qk4toUfjF2LC - street fighter clone
 
 // Things to do:
 // Adjust marths stats
@@ -18,7 +21,7 @@
 // Add landing lag for jumps - 4 frames
 // Create a "blast zone"
 // prevent negative stocks
-// fix crouching
+// Implement soft and hard landing
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
@@ -242,7 +245,6 @@ class Player {
     case "idle":
 
       // State behavior
-      this.velocity.x = 0;
       this.addFriction();
       if (!this.invincible) {
         this.stats.color = "blue";
@@ -610,7 +612,8 @@ class Player {
 
 // Create an attack
 class Attack {
-  constructor(playerX, playerY, attackWidth, attackHeight, attackDamage, attackKnockback) {
+  constructor(playerDirection, playerX, playerY, attackOffsetX, attackOffsetY, attackWidth, 
+    attackHeight, attackDamage, attackBaseKnockback, attackFrames, attackAngle, attackGrowthKnockBack) {
 
     // Attack properties
     this.x = playerX;
@@ -618,7 +621,7 @@ class Attack {
     this.w = attackWidth;
     this.h = attackHeight;
     this.damage = attackDamage;
-    this.knockback = attackKnockback;
+    this.knockback = attackBaseKnockback;
   }
 }
 
