@@ -80,7 +80,7 @@ let marthStats = {
   weight: 90,
   color: "blue",
   width: 40,
-  currentHeight: 0,
+  currentHeight: 80,
   idleHeight: 80,
   crouchHeight: 40,
   offsetCrouchHeight: 20,
@@ -140,7 +140,7 @@ class Player {
     this.attackFrameTimer = 0;
   }
 
-  // Display the player
+  // Display the player and hitboxes
   display() {
 
     // Draw player from the center
@@ -152,7 +152,9 @@ class Player {
     rect(this.position.x, this.position.y, this.stats.width, this.stats.currentHeight);
 
     // Draw hitboxes
-    this.currentAttack.display();
+    for (let hitbox of this.hitboxes) {
+      hitbox.display();
+    }
   }
 
   // Update the player’s state and movement
@@ -460,19 +462,25 @@ class Player {
       this.addFriction();
 
       // Control the hitboxes
-      for (let hitbox of this.hitboxes) {
+      for (let i = 0; i < this.hitboxes.length; i++) {
 
+        let hitbox = this.hitboxes[i];
+
+        // Update the frame and position
         hitbox.currentFrame++;
         hitbox.update(this.position.x, this.position.y, this.direction);
 
+        // Remove hitboxes that have ended
         if (hitbox.currentFrame > hitbox.totalFrames) {
           this.hitboxes.splice(hitbox, 1);
         }
       }
 
       // State triggers
+      if (this.hitboxes.length === 0) {
+        this.state = "idle";
+      }
       
-
       break;
 
     // Dead state behavior
@@ -702,15 +710,16 @@ class Attack {
   // Show the hitbox for the attack
   display() {
 
-    // No hitbox if the active is either starting or ending
-    if (this.currentFrame <= this.startingFrames || this.currentFrame > this.startingFrames + this.activeFrames) {
-      noFill();
-      rect(this.x, this.y, this.w, this.h);
-    }
+    // Use the center to draw the hitbox
+    rectMode(CENTER);
 
     // Add a hitbox if the attack is active
-    else if (this.currentFrame > this.startingFrames || this.currentFrame <= this.startingFrames + this.activeFrames) {
+    if (this.currentFrame > this.startingFrames && this.currentFrame <= this.startingFrames + this.activeFrames) {
       fill("blue");
+      rect(this.x, this.y, this.w, this.h);
+    } 
+    else {
+      noFill();
       rect(this.x, this.y, this.w, this.h);
     }
   }
@@ -742,7 +751,7 @@ function setup() {
   createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
   // Create player
-  player = new Player(START_X, START_Y - marthStats.height / 2, marthStats);
+  player = new Player(START_X, START_Y - marthStats.currentHeight / 2, marthStats);
 
   // Create stage
   rectMode(CORNER);
