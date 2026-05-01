@@ -25,6 +25,8 @@
 // Create a "blast zone"
 // prevent negative stocks
 // Implement soft and hard landing
+// Create the first hitbox
+// Implement "sakurai's special angle"
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
@@ -78,7 +80,10 @@ let marthStats = {
   weight: 90,
   color: "blue",
   width: 40,
-  height: 80,
+  currentHeight: 0,
+  idleHeight: 80,
+  crouchHeight: 40,
+  offsetCrouchHeight: 20,
 };
 
 // Marth attacks
@@ -90,6 +95,10 @@ let marthForwardTilt = {
   startingFrames: 8,
   activeFrames: 3,
   endingFrames: 22,
+  damage: 12,
+  angle: 45,
+  knockback: 55,
+  growthKnockback: 85,
 };
 
 // Create the base player
@@ -103,6 +112,7 @@ class Player {
     this.stats = stats;
     this.stocks = PLAYER_STOCKS;
     this.percentage = 0;
+    this.currentAttack = null;
 
     // States
     this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, attacking
@@ -137,7 +147,7 @@ class Player {
     // Square to represent the player
     noStroke();
     fill(this.stats.color);
-    rect(this.position.x, this.position.y, this.stats.width, this.stats.height);
+    rect(this.position.x, this.position.y, this.stats.width, this.stats.currentHeight);
   }
 
   // Update the player’s state and movement
@@ -163,8 +173,8 @@ class Player {
   checkStageCollision() {
 
     // Player edges
-    let playerBottom = this.position.y + this.stats.height / 2 + this.velocity.y;
-    let playerTop = this.position.y - this.stats.height / 2 + this.velocity.y;
+    let playerBottom = this.position.y + this.stats.currentHeight / 2 + this.velocity.y;
+    let playerTop = this.position.y - this.stats.currentHeight / 2 + this.velocity.y;
     let playerRight = this.position.x + this.stats.width / 2 + this.velocity.x;
     let playerLeft = this.position.x - this.stats.width / 2 + this.velocity.x;
 
@@ -183,23 +193,25 @@ class Player {
     // First check if there is any collision and then detect which side is the closest
     if (playerBottom >= stageTop && playerTop <= stageBottom && playerRight >= stageLeft && playerLeft <= stageRight) {
 
+      // Find the amount of overlap on each edge
       let bottomOverlap = stageBottom - playerTop;
       let topOverlap = playerBottom - stageTop;
       let rightOverlap = stageRight - playerLeft;
       let leftOverlap = playerRight - stageLeft;
 
+      // Find the smallest overlap
       let minimumOverlap = Math.min(bottomOverlap, topOverlap, rightOverlap, leftOverlap);
       
-      // Return true if the player is touching a side of the stage, as well as which side they are touching
+      // Push the player out of the nearest side and return which side was touched as well as a true or false
       if (minimumOverlap === topOverlap) {
         this.touchingTop = true;
-        this.position.y = stageTop - this.stats.height / 2;
+        this.position.y = stageTop - this.stats.currentHeight / 2;
         return true;
       }
   
       else if (minimumOverlap === bottomOverlap) {
         this.touchingBottom = true;
-        this.position.y = stageBottom + this.stats.height / 2;
+        this.position.y = stageBottom + this.stats.currentHeight / 2;
         this.velocity.y = 0;
         return true;
       }
@@ -224,6 +236,8 @@ class Player {
 
   // Add gravity to player
   addGravity() {
+
+    // Only add gravity if the player isn't touching the top of the stage or on the angel platform
     if (!this.touchingTop && this.state !== "spawning") {
       this.velocity.y += this.stats.gravity;
 
@@ -239,8 +253,12 @@ class Player {
 
   // Count down timer for 5 seconds from spawning before removing i-frames
   countInvincibility() {
+
+    // Begin counting if the player is playing and invincible
     if (this.invincible && this.state !== "spawning" && this.state !== "dead") {
       this.invincibilityTimer--;
+
+      // Remove invincibility
       if (this.invincibilityTimer <= 0) {
         this.invincible = false;
       }
@@ -279,8 +297,8 @@ class Player {
 
       if (keyIsDown(S_KEY)) {
         this.state = "crouching";
-        this.stats.height = 40;
-        this.position.y += 20;
+        this.stats.currentHeight = this.stats.crouchHeight;
+        this.position.y += this.offsetCrouchHeight;
       }
 
       if (!this.touchingTop) {
@@ -315,8 +333,8 @@ class Player {
 
       if (keyIsDown(S_KEY)) {
         this.state = "crouching";
-        this.stats.height = 40;
-        this.position.y += 20;
+        this.stats.currentHeight = this.stats.crouchHeight;
+        this.position.y += this.stats.offsetCrouchHeight;
       }
 
       if (this.jumpSquatting) {
@@ -348,12 +366,12 @@ class Player {
       
       if (!keyIsDown(S_KEY)) {
         this.state = "idle";
-        this.stats.height = 80;
-        this.position.y -= 20;
+        this.stats.currentHeight = this.stats.idleHeight;
+        this.position.y -= this.stats.offsetCrouchHeight;
 
         if (keyIsDown(A_KEY) || keyIsDown(D_KEY)) {
           this.state = "running";
-          this.stats.height = 80;
+          this.stats.currentHeight = this.stats.idleHeight;
         }
       } 
 
@@ -374,7 +392,7 @@ class Player {
 
         // Reset velocity and snap to stage
         this.velocity.y = 0;
-        this.position.y = STAGE_Y - this.stats.height / 2;
+        this.position.y = STAGE_Y - this.stats.currentHeight / 2;
       }
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
@@ -493,8 +511,8 @@ class Player {
   // make the player smaller
   crouch() {
     if (keyIsDown(S_KEY)) {
-      this.stats.height = 40;
-      this.position.y += 40;
+      this.stats.currentHeight = this.stats.crouchHeight;
+      this.position.y += this.stats.crouchHeight;
     }
   }
 
@@ -597,7 +615,7 @@ class Player {
     this.doubleJumpAvailable = true;
     this.fastFalling = false;
     this.invincible = true;
-    this.stats.height = 80;
+    this.stats.currentHeight = this.stats.idleHeight;
 
     // Reset timers
     this.invincibilityTimer = INVINCIBILITY_TIMER;
@@ -630,22 +648,45 @@ class Attack {
   constructor(playerDirection, playerX, playerY, attackOffsetX, attackOffsetY, attackWidth, attackHeight, attackDamage, 
     attackStartingFrames, attackActiveFrames, attackEndingFrames, attackAngle, attackBaseKnockback, attackGrowthKnockBack) {
 
-    // Attack properties
-    this.x = playerX;
-    this.y = playerY;
+    // Hitbox and size
+    this.x = 0;
+    this.y = 0;
     this.offsetX = attackOffsetX;
     this.offsetY = attackOffsetY;
     this.w = attackWidth;
     this.h = attackHeight;
+
+    // Damage and knockback
     this.damage = attackDamage;
     this.knockback = attackBaseKnockback;
+    this.growthKnockback = attackGrowthKnockBack;
+    this.angle = attackAngle;
+
+    // Frame data
+    this.startingFrames = attackStartingFrames;
+    this.activeFrames = attackActiveFrames;
+    this.endingFrames = attackEndingFrames;
+    this.totalFrames = this.startingFrames + this.activeFrames + this.endingFrames;
+    this.currentFrame = 0;
   }
 
   // Show the hitbox for the attack
   display() {
-    rect(this.x, this.y, this.w, this.h);
+
+    // No hitbox if the active is either starting or ending
+    if (this.currentFrame <= this.startingFrames || this.currentFrame > this.startingFrames + this.activeFrames) {
+      noFill();
+      rect(this.x, this.y, this.w, this.h);
+    }
+
+    // Add a hitbox if the attack is active
+    else if (this.currentFrame > this.startingFrames || this.currentFrame <= this.startingFrames + this.activeFrames) {
+      fill("blue");
+      rect(this.x, this.y, this.w, this.h);
+    }
   }
 
+  // Move the hitbox with the player
   update() {
     this.x = player.position.x;
     this.y = player.position.y;
