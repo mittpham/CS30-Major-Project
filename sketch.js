@@ -99,6 +99,7 @@ let marthForwardTilt = {
   angle: 45,
   knockback: 55,
   growthKnockback: 85,
+  shieldStun: 11,
 };
 
 // Create the base player
@@ -113,9 +114,10 @@ class Player {
     this.stocks = PLAYER_STOCKS;
     this.percentage = 0;
     this.currentAttack = null;
+    this.hitboxes = [];
 
     // States
-    this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, attacking
+    this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, spawning, attacking
 
     // Flags/Conditions
     this.direction = true;
@@ -148,6 +150,9 @@ class Player {
     noStroke();
     fill(this.stats.color);
     rect(this.position.x, this.position.y, this.stats.width, this.stats.currentHeight);
+
+    // Draw hitboxes
+    this.currentAttack.display();
   }
 
   // Update the player’s state and movement
@@ -452,8 +457,21 @@ class Player {
     case "attacking":
 
       // State behavior
+      this.addFriction();
+
+      // Control the hitboxes
+      for (let hitbox of this.hitboxes) {
+
+        hitbox.currentFrame++;
+        hitbox.update(this.position.x, this.position.y, this.direction);
+
+        if (hitbox.currentFrame > hitbox.totalFrames) {
+          this.hitboxes.splice(hitbox, 1);
+        }
+      }
 
       // State triggers
+      
 
       break;
 
@@ -589,6 +607,17 @@ class Player {
     }
   }
 
+  // Create the new attack
+  spawnHitbox() {
+    this.currentAttack = new Attack(this.direction, this.position.x, this.position.y, marthForwardTilt.offsetX, 
+      marthForwardTilt.offsetY, marthForwardTilt.width, marthForwardTilt.height, marthForwardTilt.damage, 
+      marthForwardTilt.startingFrames, marthForwardTilt.activeFrames, marthForwardTilt.endingFrames, 
+      marthForwardTilt.angle, marthForwardTilt.knockback, marthForwardTilt.growthKnockback);
+
+    this.hitboxes.push(this.currentAttack);
+    this.state = "attacking";
+  }
+
   // Apply user input to player
   addVectors() {
     this.velocity.add(this.acceleration);
@@ -687,9 +716,24 @@ class Attack {
   }
 
   // Move the hitbox with the player
-  update() {
-    this.x = player.position.x;
-    this.y = player.position.y;
+  update(playerX, playerY, playerDirection) {
+
+    // Determine the offset X position based off of the players direction
+    if (!playerDirection) {
+      this.offsetX *= -1;
+    }
+    else {
+      this.offsetX *= 1;
+    }
+
+    // Attach the hitbox to the player
+    this.x = playerX + this.offsetX;
+    this.y = playerY + this.offsetY;
+  }
+
+  // Determine the angle, hitstun, and kncokback of the move
+  calculateKnockback() {
+
   }
 }
 
