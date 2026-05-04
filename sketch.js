@@ -21,10 +21,9 @@
 // Things to do:
 // Adjust marths stats
 // Fix the ratio for stage - 1 meter in game is about 16 pixels
-// Add landing lag for jumps - 4 frames
-// Create a "blast zone"
+// smoothen landing lag
 // prevent negative stocks
-// Implement soft and hard landing
+// Implement soft and hard landing - 2 and 4 frames
 // Create the first hitbox
 // Implement "sakurai's special angle"
 
@@ -32,7 +31,7 @@
 const SCREEN_WIDTH = 1440;
 const SCREEN_HEIGHT = 810;
 
-// Player constants and variables
+// Player 1 constants and variables
 const START_X = 720;
 const START_Y = 600;
 const SPAWN_X = 720;
@@ -51,7 +50,11 @@ const Q_KEY = 81;
 const E_KEY = 69;
 const U_KEY = 85;
 
-let player;
+let playerOne;
+
+// Player 2 constants and variables
+
+let playerTwo;
 
 // Stage constants and variables
 const STAGE_X = 320;
@@ -88,10 +91,10 @@ let marthStats = {
 
 // Marth attacks
 let marthForwardTilt = {
-  offsetX: 10,
-  offsetY: 20,
-  width: 40,
-  height: 30,
+  offsetX: 60,
+  offsetY: 0,
+  width: 80,
+  height: 90,
   startingFrames: 8,
   activeFrames: 3,
   endingFrames: 22,
@@ -305,7 +308,7 @@ class Player {
       if (keyIsDown(S_KEY)) {
         this.state = "crouching";
         this.stats.currentHeight = this.stats.crouchHeight;
-        this.position.y += this.offsetCrouchHeight;
+        this.position.y += this.stats.offsetCrouchHeight;
       }
 
       if (!this.touchingTop) {
@@ -462,7 +465,7 @@ class Player {
       this.addFriction();
 
       // Control the hitboxes
-      for (let i = 0; i < this.hitboxes.length; i++) {
+      for (let i = this.hitboxes.length - 1; i >= 0; i--) {
 
         let hitbox = this.hitboxes[i];
 
@@ -548,13 +551,11 @@ class Player {
     // Move right
     if (keyIsDown(D_KEY)) {
       this.acceleration.add(this.stats.airAcceleration, 0);
-      this.direction = true;
     }
 
     // Move left
     if (keyIsDown(A_KEY)) {
       this.acceleration.add(-this.stats.airAcceleration, 0);
-      this.direction = false;
     }
   }
 
@@ -719,6 +720,7 @@ class Attack {
       rect(this.x, this.y, this.w, this.h);
     } 
     else {
+      playerOne.stats.color = "red";
       noFill();
       rect(this.x, this.y, this.w, this.h);
     }
@@ -727,16 +729,20 @@ class Attack {
   // Move the hitbox with the player
   update(playerX, playerY, playerDirection) {
 
+    let currentOffsetX = null;
+
     // Determine the offset X position based off of the players direction
     if (!playerDirection) {
-      this.offsetX *= -1;
+      this.offsetX *= 1;
     }
     else {
       this.offsetX *= 1;
     }
 
+    currentOffsetX = this.offsetX;
+
     // Attach the hitbox to the player
-    this.x = playerX + this.offsetX;
+    this.x = playerX + currentOffsetX;
     this.y = playerY + this.offsetY;
   }
 
@@ -750,8 +756,8 @@ class Attack {
 function setup() {
   createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
-  // Create player
-  player = new Player(START_X, START_Y - marthStats.currentHeight / 2, marthStats);
+  // Create player 1
+  playerOne = new Player(START_X, START_Y - marthStats.currentHeight / 2, marthStats);
 
   // Create stage
   rectMode(CORNER);
@@ -768,11 +774,14 @@ function draw() {
   fill("white");
   rect(STAGE_X, STAGE_Y, STAGE_WIDTH, STAGE_HEIGHT);
 
+  // Create player 2
+  rect(300, 400, 100, 100);
+
   // Update player states and movement
-  player.update();
+  playerOne.update();
 
   // Display player
-  player.display();
+  playerOne.display();
 }
 
 // Handle player input for single events
@@ -782,19 +791,19 @@ function keyPressed() {
   if (keyCode === W_KEY || keyCode === Q_KEY) {
 
     // Angel platform jump
-    if (player.state === "spawning") {
-      player.state = "airborne";
-      player.doubleJump();
+    if (playerOne.state === "spawning") {
+      playerOne.state = "airborne";
+      playerOne.doubleJump();
     }
 
     // Ground jump
-    else if (player.jumpAvailable) {
-      player.jumpSquatting = true;
+    else if (playerOne.jumpAvailable) {
+      playerOne.jumpSquatting = true;
     }
 
     // Double jump
-    else if (player.doubleJumpAvailable) {
-      player.doubleJump();
+    else if (playerOne.doubleJumpAvailable) {
+      playerOne.doubleJump();
     }
   }
 
@@ -802,14 +811,18 @@ function keyPressed() {
   if (keyCode === S_KEY) {
 
     // Check that player is airborne
-    if (player.state === "airborne") {
-      player.fastFall();
+    if (playerOne.state === "airborne") {
+      playerOne.fastFall();
     }
   }
 
   // Attacking
   if (keyCode === U_KEY) {
-    player.spawnHitbox();
+
+    // Make sure the player isn't currently attacking and grounded
+    if (playerOne.state === "idle") {
+      playerOne.spawnHitbox();
+    }
   }
 }
 
