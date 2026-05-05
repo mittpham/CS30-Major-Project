@@ -43,13 +43,15 @@ const PLAYER_ONE_START_X = 520;
 const PLAYER_ONE_START_Y = 600;
 const PLAYER_ONE_SPAWN_X = 520;
 const PLAYER_ONE_SPAWN_Y = 200;
-const A_KEY = 65;
-const D_KEY = 68;
-const W_KEY = 87;
-const S_KEY = 83;
-const Q_KEY = 81;
-const E_KEY = 69;
-const U_KEY = 85;
+
+let playerOneControls = {
+  left: 65, // A key
+  right: 68, // D key
+  up: 87, // W key
+  down: 83, // S key
+  shortHop: 81, // Q key
+  attack: 85, // U key
+};
 
 let playerOne;
 
@@ -58,10 +60,13 @@ const PLAYER_TWO_START_X = 920;
 const PLAYER_TWO_START_Y = 600;
 const PLAYER_TWO_SPAWN_X = 920;
 const PLAYER_TWO_SPAWN_Y = 200;
-const LEFT_ARROW = 37;
-const RIGHT_ARROW = 39;
-const UP_ARROW = 38;
-const DOWN_ARROW = 40;
+
+let playerTwoControls = {
+  left: 37, // Left arrow
+  right: 39, // Right arrow
+  up: 38, // Up arrow
+  down: 40, // Down arrow
+};
 
 let playerTwo;
 
@@ -137,10 +142,10 @@ let marthForwardTilt = {
 
 // Create the base player
 class Player {
-  constructor(x, y, stats, player) {
+  constructor(x, y, stats, controls) {
 
     // Physics and stats
-    this.player = player;
+    this.controls = controls;
     this.position = createVector(x, y);
     this.velocity = createVector(0, 0);
     this.acceleration = createVector(0, 0);
@@ -332,11 +337,11 @@ class Player {
         this.state = "jumpSquat";
       }
 
-      if (keyIsDown(A_KEY) || keyIsDown(D_KEY)) {
+      if (keyIsDown(this.controls.left) || keyIsDown(this.controls.right)) {
         this.state = "running";
       }
 
-      if (keyIsDown(S_KEY)) {
+      if (keyIsDown(this.controls.down)) {
         this.state = "crouching";
         this.stats.currentHeight = this.stats.crouchHeight;
         this.position.y += this.stats.offsetCrouchHeight;
@@ -368,11 +373,11 @@ class Player {
       this.fastFalling = false;
 
       // State triggers
-      if (!keyIsDown(A_KEY) && !keyIsDown(D_KEY)) {
+      if (!keyIsDown(this.controls.left) && !keyIsDown(this.controls.right)) {
         this.state = "idle";
       }
 
-      if (keyIsDown(S_KEY)) {
+      if (keyIsDown(this.controls.down)) {
         this.state = "crouching";
         this.stats.currentHeight = this.stats.crouchHeight;
         this.position.y += this.stats.offsetCrouchHeight;
@@ -405,12 +410,12 @@ class Player {
 
       // State triggers
       
-      if (!keyIsDown(S_KEY)) {
+      if (!keyIsDown(this.controls.down)) {
         this.state = "idle";
         this.stats.currentHeight = this.stats.idleHeight;
         this.position.y -= this.stats.offsetCrouchHeight;
 
-        if (keyIsDown(A_KEY) || keyIsDown(D_KEY)) {
+        if (keyIsDown(this.controls.left) || keyIsDown(this.controls.right)) {
           this.state = "running";
           this.stats.currentHeight = this.stats.idleHeight;
         }
@@ -547,12 +552,12 @@ class Player {
       this.angelPlatform();
 
       // State triggers
-      if (keyIsDown(S_KEY)) {
+      if (keyIsDown(this.controls.down)) {
         this.state = "airborne";
         this.fastFalling = true;
       }
 
-      if (keyIsDown(A_KEY) || keyIsDown(D_KEY) || this.angelPlatformTimer <= 0) {
+      if (keyIsDown(this.controls.left) || keyIsDown(this.controls.right) || this.angelPlatformTimer <= 0) {
         this.angelPlatformTimer = 300;
         this.state = "airborne";
       }
@@ -565,13 +570,13 @@ class Player {
   groundMovement() {
 
     // Move right
-    if (keyIsDown(D_KEY)) {
+    if (keyIsDown(this.controls.right)) {
       this.acceleration.add(this.stats.initialDash, 0);
       this.direction = true;
     }
 
     // Move left
-    if (keyIsDown(A_KEY)) {
+    if (keyIsDown(this.controls.left)) {
       this.acceleration.add(-this.stats.initialDash, 0);
       this.direction = false;
     }
@@ -579,7 +584,7 @@ class Player {
 
   // make the player smaller
   crouch() {
-    if (keyIsDown(S_KEY)) {
+    if (keyIsDown(this.controls.down)) {
       this.stats.currentHeight = this.stats.crouchHeight;
       this.position.y += this.stats.crouchHeight;
     }
@@ -589,12 +594,12 @@ class Player {
   airMovement() {
 
     // Move right
-    if (keyIsDown(D_KEY)) {
+    if (keyIsDown(this.controls.right)) {
       this.acceleration.add(this.stats.airAcceleration, 0);
     }
 
     // Move left
-    if (keyIsDown(A_KEY)) {
+    if (keyIsDown(this.controls.left)) {
       this.acceleration.add(-this.stats.airAcceleration, 0);
     }
   }
@@ -629,10 +634,10 @@ class Player {
     if (this.jumpAvailable) {
 
       // Determine jump height
-      if (keyIsDown(Q_KEY)) {
+      if (keyIsDown(this.controls.shortHop)) {
         this.velocity.y = this.stats.shortHopPower;
       }
-      else if (keyIsDown(W_KEY)) {
+      else if (keyIsDown(this.controls.up)) {
         this.velocity.y = this.stats.fullHopPower;
       }
       else {
@@ -760,7 +765,7 @@ class Attack {
       rect(this.x, this.y, this.w, this.h);
     } 
     else {
-      fill("red");
+      noFill();
       rect(this.x, this.y, this.w, this.h);
     }
   }
@@ -795,11 +800,11 @@ function setup() {
 
   // Create player 1
   playerOne = new Player(PLAYER_ONE_START_X, PLAYER_ONE_START_Y - playerOneMarthStats.currentHeight / 2, 
-    playerOneMarthStats, "one");
+    playerOneMarthStats, playerOneControls);
 
   // Create player 2
   playerTwo = new Player(PLAYER_TWO_START_X, PLAYER_TWO_START_Y - playerTwoMarthStats.currentHeight / 2, 
-    playerTwoMarthStats, "two");
+    playerTwoMarthStats, playerTwoControls);
 
   // Create stage
   rectMode(CORNER);
@@ -829,7 +834,7 @@ function draw() {
 function keyPressed() {
 
   // Jumping
-  if (keyCode === W_KEY || keyCode === Q_KEY) {
+  if (keyCode === playerOne.controls.up || keyCode === playerOne.controls.shortHop) {
 
     // Angel platform jump
     if (playerOne.state === "spawning") {
@@ -849,7 +854,7 @@ function keyPressed() {
   }
 
   // Fast falling
-  if (keyCode === S_KEY) {
+  if (keyCode === playerOne.controls.down) {
 
     // Check that player is airborne
     if (playerOne.state === "airborne") {
@@ -858,7 +863,7 @@ function keyPressed() {
   }
 
   // Attacking
-  if (keyCode === U_KEY) {
+  if (keyCode === playerOne.controls.attack) {
 
     // Make sure the player isn't currently attacking and grounded
     if (playerOne.state === "idle") {
