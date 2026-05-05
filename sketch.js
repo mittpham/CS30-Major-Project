@@ -21,27 +21,28 @@
 // Things to do:
 // Adjust marths stats
 // Fix the ratio for stage - 1 meter in game is about 16 pixels
-// smoothen landing lag
 // prevent negative stocks
-// Implement soft and hard landing - 2 and 4 frames
-// Create the first hitbox
+// add knockback
 // Implement "sakurai's special angle"
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
 const SCREEN_HEIGHT = 810;
 
-// Player 1 constants and variables
-const START_X = 720;
-const START_Y = 600;
-const SPAWN_X = 720;
-const SPAWN_Y = 200;
+// Universal player variables and constants
 const JUMPSQUAT_TIMER = 3;
-const LANDING_LAG_TIMER = 4;
+const SOFT_LANDING_LAG_TIMER = 2;
+const HARD_LANDING_LAG_TIMER = 4;
 const SPAWNING_TIMER = 30;
 const INVINCIBILITY_TIMER = 120;
 const ANGEL_PLATFORM_TIMER = 300;
 const PLAYER_STOCKS = 3;
+
+// Player 1 constants and variables
+const PLAYER_ONE_START_X = 520;
+const PLAYER_ONE_START_Y = 600;
+const PLAYER_ONE_SPAWN_X = 520;
+const PLAYER_ONE_SPAWN_Y = 200;
 const A_KEY = 65;
 const D_KEY = 68;
 const W_KEY = 87;
@@ -53,6 +54,14 @@ const U_KEY = 85;
 let playerOne;
 
 // Player 2 constants and variables
+const PLAYER_TWO_START_X = 920;
+const PLAYER_TWO_START_Y = 600;
+const PLAYER_TWO_SPAWN_X = 920;
+const PLAYER_TWO_SPAWN_Y = 200;
+const LEFT_ARROW = 37;
+const RIGHT_ARROW = 39;
+const UP_ARROW = 38;
+const DOWN_ARROW = 40;
 
 let playerTwo;
 
@@ -68,7 +77,28 @@ const LEFT_BLAST_ZONE = -25;
 const RIGHT_BLAST_ZONE = 1465;
 
 // Marth stats
-let marthStats = {
+let playerOneMarthStats = {
+  runSpeed: 4,
+  initialDash: 5,
+  airAcceleration: 1,
+  airSpeed: 2.4,
+  friction: 0.886,
+  gravity: 0.6,
+  fallSpeed: 8,
+  fastFallSpeed: 12.8,
+  shortHopPower: -10,
+  fullHopPower: -15,
+  doubleJumpPower: -15,
+  weight: 90,
+  color: "blue",
+  width: 40,
+  currentHeight: 80,
+  idleHeight: 80,
+  crouchHeight: 40,
+  offsetCrouchHeight: 20,
+};
+
+let playerTwoMarthStats = {
   runSpeed: 4,
   initialDash: 5,
   airAcceleration: 1,
@@ -107,9 +137,10 @@ let marthForwardTilt = {
 
 // Create the base player
 class Player {
-  constructor(x, y, stats) {
+  constructor(x, y, stats, player) {
 
     // Physics and stats
+    this.player = player;
     this.position = createVector(x, y);
     this.velocity = createVector(0, 0);
     this.acceleration = createVector(0, 0);
@@ -136,7 +167,7 @@ class Player {
 
     // Timers
     this.jumpSquatTimer = JUMPSQUAT_TIMER;
-    this.landingLagTimer = LANDING_LAG_TIMER;
+    this.landingLagTimer = 0;
     this.spawningTimer = SPAWNING_TIMER;
     this.invincibilityTimer = INVINCIBILITY_TIMER;
     this.angelPlatformTimer = ANGEL_PLATFORM_TIMER;
@@ -400,6 +431,14 @@ class Player {
       if (this.touchingTop) {
         this.state = "landing";
 
+        // Choose landing lag depending on the player's fall speed
+        if (this.fastFalling) { 
+          this.landingLagTimer = HARD_LANDING_LAG_TIMER;
+        }
+        else {
+          this.landingLagTimer = SOFT_LANDING_LAG_TIMER;
+        }
+
         // Reset velocity and snap to stage
         this.velocity.y = 0;
         this.position.y = STAGE_Y - this.stats.currentHeight / 2;
@@ -434,6 +473,8 @@ class Player {
 
       // State behaviour
       this.addFriction();
+
+      // Start timer
       this.landingLagTimer--;
       if (!this.invincible) {
         this.stats.color = "red";
@@ -449,7 +490,6 @@ class Player {
         this.jumpSquatting = false;
         this.fastFalling = false;
         this.jumpSquatTimer = JUMPSQUAT_TIMER;
-        this.landingLagTimer = LANDING_LAG_TIMER;
       }
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
@@ -475,7 +515,7 @@ class Player {
 
         // Remove hitboxes that have ended
         if (hitbox.currentFrame > hitbox.totalFrames) {
-          this.hitboxes.splice(hitbox, 1);
+          this.hitboxes.splice(i, 1);
         }
       }
 
@@ -667,8 +707,8 @@ class Player {
     this.angelPlatformTimer--;
 
     // Reset player position
-    this.position.x = SPAWN_X;
-    this.position.y = SPAWN_Y;
+    this.position.x = PLAYER_ONE_SPAWN_X;
+    this.position.y = PLAYER_ONE_SPAWN_Y;
 
     // Halt all movement
     this.acceleration.mult(0);
@@ -720,8 +760,7 @@ class Attack {
       rect(this.x, this.y, this.w, this.h);
     } 
     else {
-      playerOne.stats.color = "red";
-      noFill();
+      fill("red");
       rect(this.x, this.y, this.w, this.h);
     }
   }
@@ -733,13 +772,11 @@ class Attack {
 
     // Determine the offset X position based off of the players direction
     if (!playerDirection) {
-      this.offsetX *= 1;
+      currentOffsetX = -this.offsetX;
     }
     else {
-      this.offsetX *= 1;
+      currentOffsetX = this.offsetX;
     }
-
-    currentOffsetX = this.offsetX;
 
     // Attach the hitbox to the player
     this.x = playerX + currentOffsetX;
@@ -757,7 +794,12 @@ function setup() {
   createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
   // Create player 1
-  playerOne = new Player(START_X, START_Y - marthStats.currentHeight / 2, marthStats);
+  playerOne = new Player(PLAYER_ONE_START_X, PLAYER_ONE_START_Y - playerOneMarthStats.currentHeight / 2, 
+    playerOneMarthStats, "one");
+
+  // Create player 2
+  playerTwo = new Player(PLAYER_TWO_START_X, PLAYER_TWO_START_Y - playerTwoMarthStats.currentHeight / 2, 
+    playerTwoMarthStats, "two");
 
   // Create stage
   rectMode(CORNER);
@@ -774,14 +816,13 @@ function draw() {
   fill("white");
   rect(STAGE_X, STAGE_Y, STAGE_WIDTH, STAGE_HEIGHT);
 
-  // Create player 2
-  rect(300, 400, 100, 100);
-
   // Update player states and movement
   playerOne.update();
+  playerTwo.update();
 
   // Display player
   playerOne.display();
+  playerTwo.display();
 }
 
 // Handle player input for single events
