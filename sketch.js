@@ -19,11 +19,15 @@
 // https://www.ssbwiki.com/Tumbling - tumbling
 
 // Things to do:
-// Adjust marths stats
-// Fix the ratio for stage - 1 meter in game is about 16 pixels
-// prevent negative stocks
-// add knockback
-// Implement "sakurai's special angle"
+// 1. add knockback
+// 2. Implement "sakurai's special angle"
+// 3. Add collision between players
+// 4. fix keypressed to include controls for both players
+// 5. fix spawning x and y to be different for both players
+// 6. prevent negative stocks
+// 7. Adjust marths stats
+// 8. Fix the ratio for stage - 1 meter in game is about 16 pixels
+
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
@@ -825,6 +829,9 @@ function draw() {
   playerOne.update();
   playerTwo.update();
 
+  // Check for collision between players and attacks
+  playerCollisions(playerOne, playerTwo);
+
   // Display player
   playerOne.display();
   playerTwo.display();
@@ -872,3 +879,39 @@ function keyPressed() {
   }
 }
 
+// Check if the players are colliding and prevent them from overlapping
+function playerCollisions(playerOne, playerTwo) {
+  
+  // Player one edges
+  let playerOneBottom = playerOne.position.y + playerOne.stats.currentHeight / 2;
+  let playerOneTop = playerOne.position.y - playerOne.stats.currentHeight / 2;
+  let playerOneRight = playerOne.position.x + playerOne.stats.width / 2;
+  let playerOneLeft = playerOne.position.x - playerOne.stats.width / 2;
+
+  // Player two edges
+  let playerTwoBottom = playerTwo.position.y + playerTwo.stats.currentHeight / 2;
+  let playerTwoTop = playerTwo.position.y - playerTwo.stats.currentHeight / 2;
+  let playerTwoRight = playerTwo.position.x + playerTwo.stats.width / 2;
+  let playerTwoLeft = playerTwo.position.x - playerTwo.stats.width / 2;
+
+  // First check if there is any collision and then detect which side is the closest
+  if (playerOneBottom >= playerTwoTop && playerOneTop <= playerTwoBottom && 
+    playerOneRight >= playerTwoLeft && playerOneLeft <= playerTwoRight) {
+
+    // Find the amount of overlap on the left and right
+    let rightOverlap = playerTwoRight - playerOneLeft;
+    let leftOverlap = playerOneRight - playerTwoLeft;
+
+    // Find the smallest overlap
+    let minimumOverlap = Math.min(rightOverlap, leftOverlap);
+    
+    // Push the player out to the left or right
+    if (minimumOverlap === leftOverlap) {
+      playerOne.position.x = playerTwo.position.x - playerTwo.stats.width / 2;
+    }
+    
+    else if (minimumOverlap === rightOverlap) {
+      playerOne.position.x = playerTwo.position.x + playerTwo.stats.width / 2;
+    }
+  }
+}
