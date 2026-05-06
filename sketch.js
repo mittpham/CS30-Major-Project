@@ -69,7 +69,9 @@ let playerTwoControls = {
   left: 37, // Left arrow
   right: 39, // Right arrow
   up: 38, // Up arrow
-  down: 40, // Down arrow
+  down: 12, // Numberpad 5 / Clear
+  shortHop: 36, // Home / Numberpad 7
+  attack: 191, // Slash
 };
 
 let playerTwo;
@@ -762,6 +764,7 @@ class Attack {
 
     // Use the center to draw the hitbox
     rectMode(CENTER);
+    noStroke();
 
     // Add a hitbox if the attack is active
     if (this.currentFrame > this.startingFrames && this.currentFrame <= this.startingFrames + this.activeFrames) {
@@ -819,6 +822,7 @@ function setup() {
 // Manage players
 function draw() {
   background(0);
+  noStroke();
 
   // Draw stage
   rectMode(CORNER);
@@ -840,6 +844,7 @@ function draw() {
 // Handle player input for single events
 function keyPressed() {
 
+  // PLAYER ONE CONTROLS
   // Jumping
   if (keyCode === playerOne.controls.up || keyCode === playerOne.controls.shortHop) {
 
@@ -877,6 +882,45 @@ function keyPressed() {
       playerOne.spawnHitbox();
     }
   }
+
+  // PLAYER TWO CONTROLS
+  // Jumping
+  if (keyCode === playerTwo.controls.up || keyCode === playerTwo.controls.shortHop) {
+
+    // Angel platform jump
+    if (playerTwo.state === "spawning") {
+      playerTwo.state = "airborne";
+      playerTwo.doubleJump();
+    }
+
+    // Ground jump
+    else if (playerTwo.jumpAvailable) {
+      playerTwo.jumpSquatting = true;
+    }
+
+    // Double jump
+    else if (playerTwo.doubleJumpAvailable) {
+      playerTwo.doubleJump();
+    }
+  }
+
+  // Fast falling
+  if (keyCode === playerTwo.controls.down) {
+
+    // Check that player is airborne
+    if (playerTwo.state === "airborne") {
+      playerTwo.fastFall();
+    }
+  }
+
+  // Attacking
+  if (keyCode === playerTwo.controls.attack) {
+
+    // Make sure the player isn't currently attacking and grounded
+    if (playerTwo.state === "idle") {
+      playerTwo.spawnHitbox();
+    }
+  }
 }
 
 // Check if the players are colliding and prevent them from overlapping
@@ -907,11 +951,13 @@ function playerCollisions(playerOne, playerTwo) {
     
     // Push the player out to the left or right
     if (minimumOverlap === leftOverlap) {
-      playerOne.position.x = playerTwo.position.x - playerTwo.stats.width / 2;
+      playerOne.position.x -= leftOverlap / 2;
+      playerTwo.position.x += leftOverlap / 2;
     }
     
     else if (minimumOverlap === rightOverlap) {
-      playerOne.position.x = playerTwo.position.x + playerTwo.stats.width / 2;
+      playerOne.position.x += rightOverlap / 2;
+      playerTwo.position.x -= rightOverlap / 2;
     }
   }
 }
