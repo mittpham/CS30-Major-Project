@@ -8,23 +8,25 @@
 // https://gameprogrammingpatterns.com/state.html - state machines
 // https://editor.p5js.org/shfitz/sketches/8s9FLdrai - switch and case
 // https://ultimateframedata.com/stats - character statistics
+// https://kuroganehammer.com/Ultimate/Marth - Marth knockback and damage values
 // https://www.jeffreythompson.org/collision-detection/rect-rect.php - rect/rect collision detection
-// https://editor.p5js.org/jesse_harding/sketches/dzF-WbKuk - platform collision
 // https://blog.hamaluik.ca/posts/simple-aabb-collision-using-minkowski-difference/ - Minkowksi difference
 // https://www.youtube.com/watch?v=CxvdO_kkXmY - smash bros knockback explanation
 // https://www.ssbwiki.com/Knockback - smash knockback formula
-// https://kuroganehammer.com/Ultimate/Marth - Marth knockback and damage values
-// https://www.youtube.com/playlist?list=PLf9yt-2olqyLxr-vouWl-qk4toUfjF2LC - street fighter clone
 // https://www.ssbwiki.com/Hitstun - hitstun
 // https://www.ssbwiki.com/Tumbling - tumbling
+// https://www.ssbwiki.com/Sakurai_angle - Sakurai's special angle
+// https://editor.p5js.org/jesse_harding/sketches/dzF-WbKuk - platform collision
+// https://www.youtube.com/playlist?list=PLf9yt-2olqyLxr-vouWl-qk4toUfjF2LC - street fighter clone
 
 // Things to do:
 // 1. add knockback
 // 2. Implement "sakurai's special angle"
-// 3. fix spawning x and y to be different for both players
-// 4. prevent negative stocks
-// 5. Adjust marths stats
-// 6. Fix the ratio for stage - 1 meter in game is about 16 pixels
+// 3. Refactor stage into a class
+// 4. fix spawning x and y to be different for both players
+// 5. prevent negative stocks
+// 6. Adjust marths stats
+// 7. Fix the ratio for stage - 1 meter in game is about 16 pixels
 
 
 // Canvas constants
@@ -341,22 +343,25 @@ class Player {
   // Use player 2 as the hurtbox to check if any attack's hitbox collides with them
   checkAttackCollision(hurtbox) {
 
-    // Player's hitbox's edges
-    let hitboxBottom = this.currentAttack.y + this.currentAttack.h / 2;
-    let hitboxTop = this.currentAttack.y - this.currentAttack.h / 2;
-    let hitboxRight = this.currentAttack.x + this.currentAttack.w / 2;
-    let hitboxLeft = this.currentAttack.x - this.currentAttack.w / 2;
-
-    // Enemy's hurtbox's edges
-    let hurtboxBottom = hurtbox.position.y + hurtbox.stats.height / 2;
-    let hurtboxTop = hurtbox.position.y - hurtbox.stats.height / 2;
-    let hurtboxRight = hurtbox.position.x + hurtbox.stats.width / 2;
-    let hurtboxLeft = hurtbox.position.y - hurtbox.stats.height / 2;
-
-    // Calculate knockback if there is a collision
-    if (hitboxBottom >= hurtboxTop && hitboxTop <= hurtboxBottom && 
-    hitboxRight >= hurtboxLeft && hitboxLeft <= hurtboxRight) {
-      this.currentAttack.calculateKnockback(hurtbox);
+    // Make sure that there is an attack out currently
+    if (this.currentAttack !== null) {
+      // Player's hitbox's edges
+      let hitboxBottom = this.currentAttack.y + this.currentAttack.h / 2;
+      let hitboxTop = this.currentAttack.y - this.currentAttack.h / 2;
+      let hitboxRight = this.currentAttack.x + this.currentAttack.w / 2;
+      let hitboxLeft = this.currentAttack.x - this.currentAttack.w / 2;
+  
+      // Enemy's hurtbox's edges
+      let hurtboxBottom = hurtbox.position.y + hurtbox.stats.height / 2;
+      let hurtboxTop = hurtbox.position.y - hurtbox.stats.height / 2;
+      let hurtboxRight = hurtbox.position.x + hurtbox.stats.width / 2;
+      let hurtboxLeft = hurtbox.position.y - hurtbox.stats.height / 2;
+  
+      // Calculate knockback if there is a collision
+      if (hitboxBottom >= hurtboxTop && hitboxTop <= hurtboxBottom && 
+      hitboxRight >= hurtboxLeft && hitboxLeft <= hurtboxRight) {
+        this.currentAttack.calculateKnockback(hurtbox);
+      }
     }
   }
 
@@ -821,6 +826,20 @@ class Attack {
   // Determine the angle, hitstun, and kncokback of the move
   calculateKnockback(player) {
 
+    // Make sure that the player isn't invincible
+    if (player.state !== "dead" || player.state !== "spawning" || !player.invincible) {
+
+      // Knock back formula from smash ult
+      // (((((p / 10 + p * d / 20) * 200 / w + 100 * 1.4) + 18) * s) + b)
+      // p is players percentage
+      // d is damage of the attack
+      // w is weight of the player
+      // s is the growth knockback divided by 100
+      // b is base knockback
+      // r is other factors, such as crouching and rage
+
+
+    }
   }
 }
 
