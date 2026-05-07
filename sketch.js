@@ -21,12 +21,10 @@
 // Things to do:
 // 1. add knockback
 // 2. Implement "sakurai's special angle"
-// 3. Add collision between players
-// 4. fix keypressed to include controls for both players
-// 5. fix spawning x and y to be different for both players
-// 6. prevent negative stocks
-// 7. Adjust marths stats
-// 8. Fix the ratio for stage - 1 meter in game is about 16 pixels
+// 3. fix spawning x and y to be different for both players
+// 4. prevent negative stocks
+// 5. Adjust marths stats
+// 6. Fix the ratio for stage - 1 meter in game is about 16 pixels
 
 
 // Canvas constants
@@ -69,7 +67,7 @@ let playerTwoControls = {
   left: 37, // Left arrow
   right: 39, // Right arrow
   up: 38, // Up arrow
-  down: 12, // Numberpad 5 / Clear
+  down: 40, // Down arrow
   shortHop: 36, // Home / Numberpad 7
   attack: 191, // Slash
 };
@@ -203,22 +201,76 @@ class Player {
   }
 
   // Update the player’s state and movement
-  update() {
-
-    // Check for collisions
-    this.checkStageCollision(); 
-
-    // Constant gravity
-    this.addGravity();
+  update(player) {
 
     // Count down invincibility from angel platform
     this.countInvincibility();
 
     // Check state and behavior
     this.manageState();
-
+    
+    // Constant gravity
+    this.addGravity();
+    
     // Add vector forces
     this.addVectors();
+
+    // Check for collisions with the stage
+    this.checkStageCollision(); 
+
+    // Check for collisions between hitboxes and hurtboxes of player
+    this.checkAttackCollision(player);
+  }
+
+  // Count down timer for 5 seconds from spawning before removing i-frames
+  countInvincibility() {
+
+    // Begin counting if the player is playing and invincible
+    if (this.invincible && this.state !== "spawning" && this.state !== "dead") {
+      this.invincibilityTimer--;
+
+      // Remove invincibility
+      if (this.invincibilityTimer <= 0) {
+        this.invincible = false;
+      }
+    }
+  }
+
+  // Add gravity to player
+  addGravity() {
+
+    // Only add gravity if the player isn't touching the top of the stage or on the angel platform
+    if (!this.touchingTop && this.state !== "spawning") {
+      this.velocity.y += this.stats.gravity;
+
+      // Cap the fall speed if player isn't fast falling
+      if (this.velocity.y > this.stats.fallSpeed && !this.fastFalling) {
+        this.velocity.y = this.stats.fallSpeed;
+      }
+      else if (this.fastFalling) {
+        this.velocity.y = this.stats.fastFallSpeed;
+      }
+    }
+  }
+
+  // Add friction to player
+  addFriction() {
+    this.velocity.x *= this.stats.friction;
+  }
+
+  // Apply user input to player
+  addVectors() {
+    this.velocity.add(this.acceleration);
+    this.position.add(this.velocity);
+    this.acceleration.mult(0);
+
+    // Cap speeds corresponding to state
+    if (this.state === "running" || this.state === "idle") {
+      this.velocity.x = constrain(this.velocity.x, -this.stats.runSpeed, this.stats.runSpeed);
+    }
+    if (this.state === "airborne") {
+      this.velocity.x = constrain(this.velocity.x, -this.stats.airSpeed, this.stats.airSpeed);
+    }
   }
 
   // Check if the player is touching the stage
@@ -286,40 +338,26 @@ class Player {
     }
   }
 
-  // Add gravity to player
-  addGravity() {
+  // Use player 2 as the hurtbox to check if any attack's hitbox collides with them
+  checkAttackCollision(hurtbox) {
 
-    // Only add gravity if the player isn't touching the top of the stage or on the angel platform
-    if (!this.touchingTop && this.state !== "spawning") {
-      this.velocity.y += this.stats.gravity;
+    // Player's hitbox's edges
+    let hitboxBottom = this.currentAttack.y + this.currentAttack.h / 2;
+    let hitboxTop = this.currentAttack.y - this.currentAttack.h / 2;
+    let hitboxRight = this.currentAttack.x + this.currentAttack.w / 2;
+    let hitboxLeft = this.currentAttack.x - this.currentAttack.w / 2;
 
-      // Cap the fall speed if player isn't fast falling
-      if (this.velocity.y > this.stats.fallSpeed && !this.fastFalling) {
-        this.velocity.y = this.stats.fallSpeed;
-      }
-      else if (this.fastFalling) {
-        this.velocity.y = this.stats.fastFallSpeed;
-      }
+    // Enemy's hurtbox's edges
+    let hurtboxBottom = hurtbox.position.y + hurtbox.stats.height / 2;
+    let hurtboxTop = hurtbox.position.y - hurtbox.stats.height / 2;
+    let hurtboxRight = hurtbox.position.x + hurtbox.stats.width / 2;
+    let hurtboxLeft = hurtbox.position.y - hurtbox.stats.height / 2;
+
+    // Calculate knockback if there is a collision
+    if (hitboxBottom >= hurtboxTop && hitboxTop <= hurtboxBottom && 
+    hitboxRight >= hurtboxLeft && hitboxLeft <= hurtboxRight) {
+      this.currentAttack.calculateKnockback(hurtbox);
     }
-  }
-
-  // Count down timer for 5 seconds from spawning before removing i-frames
-  countInvincibility() {
-
-    // Begin counting if the player is playing and invincible
-    if (this.invincible && this.state !== "spawning" && this.state !== "dead") {
-      this.invincibilityTimer--;
-
-      // Remove invincibility
-      if (this.invincibilityTimer <= 0) {
-        this.invincible = false;
-      }
-    }
-  }
-
-  // Add friction to player
-  addFriction() {
-    this.velocity.x *= this.stats.friction;
   }
 
   // Control the player’s states, conditions, and behavior
@@ -678,21 +716,6 @@ class Player {
     this.state = "attacking";
   }
 
-  // Apply user input to player
-  addVectors() {
-    this.velocity.add(this.acceleration);
-    this.position.add(this.velocity);
-    this.acceleration.mult(0);
-
-    // Cap speeds corresponding to state
-    if (this.state === "running" || this.state === "idle") {
-      this.velocity.x = constrain(this.velocity.x, -this.stats.runSpeed, this.stats.runSpeed);
-    }
-    if (this.state === "airborne") {
-      this.velocity.x = constrain(this.velocity.x, -this.stats.airSpeed, this.stats.airSpeed);
-    }
-  }
-
   // Reset player if dead
   resetPlayer() {
 
@@ -796,7 +819,7 @@ class Attack {
   }
 
   // Determine the angle, hitstun, and kncokback of the move
-  calculateKnockback() {
+  calculateKnockback(player) {
 
   }
 }
@@ -830,8 +853,8 @@ function draw() {
   rect(STAGE_X, STAGE_Y, STAGE_WIDTH, STAGE_HEIGHT);
 
   // Update player states and movement
-  playerOne.update();
-  playerTwo.update();
+  playerOne.update(playerTwo);
+  playerTwo.update(playerOne);
 
   // Check for collision between players and attacks
   playerCollisions(playerOne, playerTwo);
