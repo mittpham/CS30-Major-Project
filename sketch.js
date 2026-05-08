@@ -837,8 +837,14 @@ class Attack {
       // s is the growth knockback divided by 100
       // b is base knockback
       // r is other factors, such as crouching and rage
-
-
+      
+      let p = player.percentage;
+      let d = this.damage;
+      let w = player.stats.weight;
+      let s = this.growthKnockback / 100;
+      let b = this.knockback;
+      let knockback = ((p / 10 + p * d / 20) * 200 / w + 100 * 1.4 + 18) * s + b;
+      let hitstun = knockback * 0.4;
     }
   }
 }
