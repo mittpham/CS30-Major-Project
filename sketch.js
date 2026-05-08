@@ -162,7 +162,7 @@ class Player {
     this.hitboxes = [];
 
     // States
-    this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, spawning, attacking
+    this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, spawning, attacking, hitstun
 
     // Flags/Conditions
     this.direction = true;
@@ -183,6 +183,7 @@ class Player {
     this.invincibilityTimer = INVINCIBILITY_TIMER;
     this.angelPlatformTimer = ANGEL_PLATFORM_TIMER;
     this.attackFrameTimer = 0;
+    this.hitstunTimer = 0;
   }
 
   // Display the player and hitboxes
@@ -357,9 +358,10 @@ class Player {
       let hurtboxRight = hurtbox.position.x + hurtbox.stats.width / 2;
       let hurtboxLeft = hurtbox.position.y - hurtbox.stats.height / 2;
   
-      // Calculate knockback if there is a collision
+      // Add damage and calculate knockback if there is a collision
       if (hitboxBottom >= hurtboxTop && hitboxTop <= hurtboxBottom && 
       hitboxRight >= hurtboxLeft && hitboxLeft <= hurtboxRight) {
+        hurtbox.percentage += this.currentAttack.damage;
         this.currentAttack.calculateKnockback(hurtbox);
       }
     }
@@ -594,7 +596,7 @@ class Player {
 
       break;
 
-    // Spawning state behavior
+    // Spawning state behavior and triggers
     case "spawning":
 
       // State behavior
@@ -613,6 +615,7 @@ class Player {
       break;
     }
 
+    // hitstun state behavior and triggers
   }
 
   // Move player on the stage
@@ -809,13 +812,22 @@ class Attack {
   update(playerX, playerY, playerDirection) {
 
     let currentOffsetX = null;
+    let currentAngle = null;
 
-    // Determine the offset X position based off of the players direction
+    // Determine the offset X position based off of the player's direction
     if (!playerDirection) {
       currentOffsetX = -this.offsetX;
     }
     else {
       currentOffsetX = this.offsetX;
+    }
+
+    // Determine the angle based of the player's direction
+    if (!playerDirection) {
+      currentAngle = 180 - this.angle;
+    }
+    else {
+      currentAngle = this.angle;
     }
 
     // Attach the hitbox to the player
@@ -827,17 +839,9 @@ class Attack {
   calculateKnockback(player) {
 
     // Make sure that the player isn't invincible
-    if (player.state !== "dead" || player.state !== "spawning" || !player.invincible) {
-
-      // Knock back formula from smash ult
-      // (((((p / 10 + p * d / 20) * 200 / w + 100 * 1.4) + 18) * s) + b)
-      // p is players percentage
-      // d is damage of the attack
-      // w is weight of the player
-      // s is the growth knockback divided by 100
-      // b is base knockback
-      // r is other factors, such as crouching and rage
+    if (player.state !== "dead" && player.state !== "spawning" && !player.invincible) {
       
+      // Calculate knockback and hitstun
       let p = player.percentage;
       let d = this.damage;
       let w = player.stats.weight;
@@ -845,6 +849,14 @@ class Attack {
       let b = this.knockback;
       let knockback = ((p / 10 + p * d / 20) * 200 / w + 100 * 1.4 + 18) * s + b;
       let hitstun = knockback * 0.4;
+
+      // Calculate angle
+      let radianAngle = radians(currentAngle);
+      let knockbackAngle = p5.Vector.fromAngle(radianAngle, knockback);
+
+      // Put the player who got hit into hitstun
+      player.state = "hitstun";
+      player.hitstunTimer = hitstun;
     }
   }
 }
