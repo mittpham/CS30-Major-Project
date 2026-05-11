@@ -20,7 +20,7 @@
 // https://www.youtube.com/playlist?list=PLf9yt-2olqyLxr-vouWl-qk4toUfjF2LC - street fighter clone
 
 // Things to do:
-// 1. add knockback
+// 1. fix damage output
 // 2. Implement "sakurai's special angle"
 // 3. Refactor stage into a class
 // 4. fix spawning x and y to be different for both players
@@ -346,6 +346,7 @@ class Player {
 
     // Make sure that there is an attack out currently
     if (this.currentAttack !== null) {
+
       // Player's hitbox's edges
       let hitboxBottom = this.currentAttack.y + this.currentAttack.h / 2;
       let hitboxTop = this.currentAttack.y - this.currentAttack.h / 2;
@@ -353,16 +354,20 @@ class Player {
       let hitboxLeft = this.currentAttack.x - this.currentAttack.w / 2;
   
       // Enemy's hurtbox's edges
-      let hurtboxBottom = hurtbox.position.y + hurtbox.stats.height / 2;
-      let hurtboxTop = hurtbox.position.y - hurtbox.stats.height / 2;
+      let hurtboxBottom = hurtbox.position.y + hurtbox.stats.currentHeight / 2;
+      let hurtboxTop = hurtbox.position.y - hurtbox.stats.currentHeight / 2;
       let hurtboxRight = hurtbox.position.x + hurtbox.stats.width / 2;
-      let hurtboxLeft = hurtbox.position.y - hurtbox.stats.height / 2;
+      let hurtboxLeft = hurtbox.position.x - hurtbox.stats.width / 2;
   
       // Add damage and calculate knockback if there is a collision
       if (hitboxBottom >= hurtboxTop && hitboxTop <= hurtboxBottom && 
       hitboxRight >= hurtboxLeft && hitboxLeft <= hurtboxRight) {
-        hurtbox.percentage += this.currentAttack.damage;
         this.currentAttack.calculateKnockback(hurtbox);
+
+        console.log(hurtbox.percentage);
+      }
+      else {
+        console.log('no hit');
       }
     }
   }
@@ -408,6 +413,7 @@ class Player {
         this.state = "dead";
         this.stocks--;
       }
+
       break;
 
     // running state behaviors and triggers
@@ -448,6 +454,7 @@ class Player {
         this.state = "dead";
         this.stocks--;
       }
+
       break;
 
       // crouching state behaviors and triggers
@@ -504,6 +511,7 @@ class Player {
         this.state = "dead";
         this.stocks--;
       }
+
       break;
 
     // jumpSquat state behaviours and trigger
@@ -522,6 +530,7 @@ class Player {
         this.state = "dead";
         this.stocks--;
       }
+
       break;
 
     // Landing state behaviours and trigger
@@ -552,6 +561,7 @@ class Player {
         this.state = "dead";
         this.stocks--;
       }
+
       break;
 
     // attacking state behavior
@@ -572,6 +582,7 @@ class Player {
         // Remove hitboxes that have ended
         if (hitbox.currentFrame > hitbox.totalFrames) {
           this.hitboxes.splice(i, 1);
+          this.currentAttack = null;
         }
       }
 
@@ -612,10 +623,36 @@ class Player {
         this.angelPlatformTimer = 300;
         this.state = "airborne";
       }
+
       break;
-    }
 
     // hitstun state behavior and triggers
+    case "hitstun":
+
+      // State behavior
+      this.addFriction();
+
+      if (!this.invincible) {
+        this.stats.color = "red";
+      }
+
+      // Count hitstun frames
+      this.hitstunTimer--;
+
+      // State triggers
+      if (this.hitstunTimer <= 0) {
+
+        // Change to airborne or idle depending on the position
+        if (!this.touchingTop) {
+          this.state = "airborne";
+        }
+        else {
+          this.state = "idle";
+        }
+      }
+
+      break;
+    }
   }
 
   // Move player on the stage
@@ -781,6 +818,7 @@ class Attack {
     this.knockback = attackBaseKnockback;
     this.growthKnockback = attackGrowthKnockBack;
     this.angle = attackAngle;
+    this.currentAngle = null;
 
     // Frame data
     this.startingFrames = attackStartingFrames;
@@ -812,7 +850,6 @@ class Attack {
   update(playerX, playerY, playerDirection) {
 
     let currentOffsetX = null;
-    let currentAngle = null;
 
     // Determine the offset X position based off of the player's direction
     if (!playerDirection) {
@@ -824,10 +861,10 @@ class Attack {
 
     // Determine the angle based of the player's direction
     if (!playerDirection) {
-      currentAngle = 180 - this.angle;
+      this.currentAngle = 180 - this.angle;
     }
     else {
-      currentAngle = this.angle;
+      this.currentAngle = -this.angle;
     }
 
     // Attach the hitbox to the player
@@ -840,6 +877,8 @@ class Attack {
 
     // Make sure that the player isn't invincible
     if (player.state !== "dead" && player.state !== "spawning" && !player.invincible) {
+
+      player.percentage += this.damage;
       
       // Calculate knockback and hitstun
       let p = player.percentage;
@@ -847,15 +886,16 @@ class Attack {
       let w = player.stats.weight;
       let s = this.growthKnockback / 100;
       let b = this.knockback;
-      let knockback = ((p / 10 + p * d / 20) * 200 / w + 100 * 1.4 + 18) * s + b;
+      let knockback = 0.05 * (((p / 10 + p * d / 20) * 200 / w + 100 * 1.4 + 18) * s + b);
       let hitstun = knockback * 0.4;
 
       // Calculate angle
-      let radianAngle = radians(currentAngle);
+      let radianAngle = radians(this.currentAngle);
       let knockbackAngle = p5.Vector.fromAngle(radianAngle, knockback);
 
       // Put the player who got hit into hitstun
       player.state = "hitstun";
+      player.acceleration.add(knockbackAngle);
       player.hitstunTimer = hitstun;
     }
   }
@@ -891,7 +931,7 @@ function draw() {
 
   // Update player states and movement
   playerOne.update(playerTwo);
-  playerTwo.update(playerOne);
+  playerTwo.update(playerOne);  
 
   // Check for collision between players and attacks
   playerCollisions(playerOne, playerTwo);
@@ -899,6 +939,8 @@ function draw() {
   // Display player
   playerOne.display();
   playerTwo.display();
+
+  // console.log(playerOne.currentAttack);
 }
 
 // Handle player input for single events
