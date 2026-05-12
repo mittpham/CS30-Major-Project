@@ -27,7 +27,6 @@
 // https://www.youtube.com/watch?v=6JYnDGh5mCE&list=PLYzPRovwO_fOl0WuwqizjhPLbIwnks8Lg&index=6 - music
 
 // Things to do:
-// 1. fix damage output
 // 2. Implement "sakurai's special angle"
 // 3. Refactor stage into a class
 // 4. fix spawning x and y to be different for both players
@@ -48,6 +47,8 @@ const SPAWNING_TIMER = 30;
 const INVINCIBILITY_TIMER = 120;
 const ANGEL_PLATFORM_TIMER = 300;
 const PLAYER_STOCKS = 3;
+const KNOCKBACK_MULTIPLIER = 0.05;
+const HITSTUN_MULTIPLIER = 0.4;
 
 // Player 1 constants and variables
 const PLAYER_ONE_START_X = 520;
@@ -147,7 +148,7 @@ let marthForwardTilt = {
   activeFrames: 3,
   endingFrames: 22,
   damage: 12,
-  angle: 45,
+  angle: -45,
   knockback: 55,
   growthKnockback: 85,
   shieldStun: 11,
@@ -182,6 +183,7 @@ class Player {
     this.touchingLeft = false;
     this.touchingRight = false;
     this.touchingBottom = false;
+    this.isHit = false;
 
     // Timers
     this.jumpSquatTimer = JUMPSQUAT_TIMER;
@@ -373,8 +375,9 @@ class Player {
 
         console.log(hurtbox.percentage);
       }
+      // Reset the hit flag
       else {
-        console.log('no hit');
+        hurtbox.isHit = false;
       }
     }
   }
@@ -869,7 +872,7 @@ class Attack {
       this.currentAngle = 180 - this.angle;
     }
     else {
-      this.currentAngle = -this.angle;
+      this.currentAngle = this.angle;
     }
 
     // Attach the hitbox to the player
@@ -883,7 +886,10 @@ class Attack {
     // Make sure that the player isn't invincible
     if (player.state !== "dead" && player.state !== "spawning" && !player.invincible) {
 
-      player.percentage += this.damage;
+      // Take one instance of damage
+      if (!player.isHit) {
+        player.percentage += this.damage;
+      }
       
       // Calculate knockback and hitstun
       let p = player.percentage;
@@ -891,17 +897,46 @@ class Attack {
       let w = player.stats.weight;
       let s = this.growthKnockback / 100;
       let b = this.knockback;
-      let knockback = 0.05 * (((p / 10 + p * d / 20) * 200 / w + 100 * 1.4 + 18) * s + b);
-      let hitstun = knockback * 0.4;
+      let knockback = KNOCKBACK_MULTIPLIER * (((p / 10 + p * d / 20) * 200 / w + 100 * 1.4 + 18) * s + b);
+      let hitstun = knockback * HITSTUN_MULTIPLIER;
 
       // Calculate angle
       let radianAngle = radians(this.currentAngle);
       let knockbackAngle = p5.Vector.fromAngle(radianAngle, knockback);
 
+      // Calculate Sakurai's Special Angle
+      if (this.angle === 361 || this.angle === -181) {
+
+        // Angle will always be 38 if the enemy is airborne
+        if (player.state === "airborne") {
+          this.angle = -38;
+        }
+
+        // Grounded angles
+        else if (player.touchingTop) {
+
+          // Angle will be 0 if the knockback is low and enemy grounded < 66
+          if (knockback < 66 * KNOCKBACK_MULTIPLIER) {
+            this.angle = 0;
+          }
+
+          // Angle will be 38 if the knockback is high and enemy grounded >= 88 
+          else if (knockback >= 88 * KNOCKBACK_MULTIPLIER) {
+            this.angle = -38;
+          }
+
+          // Angle will scale linearly if in between 66 and 88
+          else {
+
+          }
+        }
+      }
+
       // Put the player who got hit into hitstun
       player.state = "hitstun";
-      player.acceleration.add(knockbackAngle);
+      player.velocity.set(knockbackAngle);
       player.hitstunTimer = round(hitstun);
+      player.isHit = true;
     }
   }
 }
@@ -967,8 +1002,6 @@ function draw() {
   // Display player
   playerOne.display();
   playerTwo.display();
-
-  // console.log(playerOne.currentAttack);
 }
 
 // Handle player input for single events
