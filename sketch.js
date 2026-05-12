@@ -19,6 +19,13 @@
 // https://editor.p5js.org/jesse_harding/sketches/dzF-WbKuk - platform collision
 // https://www.youtube.com/playlist?list=PLf9yt-2olqyLxr-vouWl-qk4toUfjF2LC - street fighter clone
 
+// In game:
+// https://www.spriters-resource.com/custom_edited/supersmashbroscustoms/asset/62979/ - stage
+// https://www.youtube.com/watch?v=wrZd9ox36BE - background
+// https://www.101soundboards.com/boards/1048309-marth-super-smash-bros-ultimate - marth sounds
+// https://www.deviantart.com/the-screen-ko-plus/art/SSBC-Marth-Sprite-Sheet-Reupload-1125121853 - marth sprites
+// https://www.youtube.com/watch?v=6JYnDGh5mCE&list=PLYzPRovwO_fOl0WuwqizjhPLbIwnks8Lg&index=6 - music
+
 // Things to do:
 // 1. fix damage output
 // 2. Implement "sakurai's special angle"
@@ -630,8 +637,6 @@ class Player {
     case "hitstun":
 
       // State behavior
-      this.addFriction();
-
       if (!this.invincible) {
         this.stats.color = "red";
       }
@@ -896,8 +901,31 @@ class Attack {
       // Put the player who got hit into hitstun
       player.state = "hitstun";
       player.acceleration.add(knockbackAngle);
-      player.hitstunTimer = hitstun;
+      player.hitstunTimer = round(hitstun);
     }
+  }
+}
+
+// Create a stage
+class Stage {
+  constructor(stageX, stageY, stageW, stageH, blastzoneGap) {
+
+    // Stage properties
+    this.x = stageX;
+    this.y = stageY;
+    this.w = stageW;
+    this.h = stageH;
+    this.blastzone = blastzoneGap;
+  }
+
+  // Show the stage
+  display() {
+
+  }
+
+  // Go through animation frames
+  update() {
+
   }
 }
 
