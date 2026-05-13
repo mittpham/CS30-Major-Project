@@ -28,12 +28,11 @@
 // https://www.youtube.com/watch?v=6JYnDGh5mCE&list=PLYzPRovwO_fOl0WuwqizjhPLbIwnks8Lg&index=6 - music
 
 // Things to do:
-// 2. Implement "sakurai's special angle"
-// 3. Refactor stage into a class
-// 4. fix spawning x and y to be different for both players
-// 5. prevent negative stocks
-// 6. Adjust marths stats
-// 7. Fix the ratio for stage - 1 meter in game is about 16 pixels
+// 1. Refactor stage into a class
+// 2. fix spawning x and y to be different for both players
+// 3. prevent negative stocks
+// 4. Adjust marths stats
+// 5. Fix the ratio for stage - 1 meter in game is about 16 pixels
 
 
 // Canvas constants
@@ -155,7 +154,7 @@ let marthForwardTilt = {
   activeFrames: 3,
   endingFrames: 22,
   damage: 12,
-  angle: -45,
+  angle: 361,
   knockback: 55,
   growthKnockback: 85,
   shieldStun: 11,
@@ -381,7 +380,7 @@ class Player {
       hitboxRight >= hurtboxLeft && hitboxLeft <= hurtboxRight) {
 
         // Calculate rage for knockback
-        this.rage = 1 + [(this.percentage - 35)/115 * 0.1];
+        this.rage = 1 + (this.percentage - 35)/115 * 0.1;
         this.currentAttack.calculateKnockback(hurtbox, this.rage);
 
         console.log(hurtbox.percentage);
@@ -911,32 +910,28 @@ class Attack {
       let r = rage;
       let knockback = KNOCKBACK_MULTIPLIER * ((((p / 10 + p * d / 20) * 200 / w + 100 * 1.4 + 18) * s + b) * r);
       let hitstun = knockback * HITSTUN_MULTIPLIER;
-
-      // Calculate angle
-      let radianAngle = radians(this.currentAngle);
-      let knockbackAngle = p5.Vector.fromAngle(radianAngle, knockback);
-
+      
       // Calculate Sakurai's Special Angle
       if (this.angle === SAKURAI_SPECIAL_ANGLE_RIGHT || this.angle === SAKURAI_SPECIAL_ANGLE_LEFT) {
-
+        
         // Angle will always be 38 if the enemy is airborne
         if (player.state === "airborne") {
           this.angle = HIGH_KNOCKBACK_ANGLE;
         }
-
+        
         // Grounded angles
         else if (player.touchingTop) {
-
+          
           // Angle will be 0 if the knockback is low and enemy grounded < 66
           if (knockback < LOW_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER) {
             this.angle = LOW_KNOCKBACK_ANGLE;
           }
-
+          
           // Angle will be 38 if the knockback is high and enemy grounded >= 88 
           else if (knockback >= HIGH_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER) {
             this.angle = HIGH_KNOCKBACK_ANGLE;
           }
-
+          
           // Angle will scale linearly if the knockback is in between 66 and 88
           else {
             this.angle = map(this.angle, LOW_KNOCKBACK_THRESHOLD, HIGH_KNOCKBACK_THRESHOLD, LOW_KNOCKBACK_ANGLE, HIGH_KNOCKBACK_ANGLE);
@@ -944,11 +939,15 @@ class Attack {
         }
       }
 
+      // Calculate angle
+      let radianAngle = radians(this.currentAngle);
+      let knockbackAngle = p5.Vector.fromAngle(radianAngle, knockback);
+      
       // Put the player who got hit into hitstun
       player.state = "hitstun";
+      player.isHit = true;
       player.velocity.set(knockbackAngle);
       player.hitstunTimer = round(hitstun);
-      player.isHit = true;
 
       console.log(knockback);
     }
@@ -1016,8 +1015,6 @@ function draw() {
   // Display player
   playerOne.display();
   playerTwo.display();
-
-  console.log(playerOne.rage);
 }
 
 // Handle player input for single events
