@@ -15,6 +15,7 @@
 // https://www.ssbwiki.com/Knockback - smash knockback formula
 // https://www.ssbwiki.com/Hitstun - hitstun
 // https://www.ssbwiki.com/Tumbling - tumbling
+// https://www.ssbwiki.com/Rage - rage
 // https://www.ssbwiki.com/Sakurai_angle - Sakurai's special angle
 // https://editor.p5js.org/jesse_harding/sketches/dzF-WbKuk - platform collision
 // https://www.youtube.com/playlist?list=PLf9yt-2olqyLxr-vouWl-qk4toUfjF2LC - street fighter clone
@@ -49,6 +50,12 @@ const ANGEL_PLATFORM_TIMER = 300;
 const PLAYER_STOCKS = 3;
 const KNOCKBACK_MULTIPLIER = 0.05;
 const HITSTUN_MULTIPLIER = 0.4;
+const SAKURAI_SPECIAL_ANGLE_RIGHT = 361;
+const SAKURAI_SPECIAL_ANGLE_LEFT = -181;
+const LOW_KNOCKBACK_ANGLE = 0;
+const HIGH_KNOCKBACK_ANGLE = -38;
+const LOW_KNOCKBACK_THRESHOLD = 66;
+const HIGH_KNOCKBACK_THRESHOLD = 88;
 
 // Player 1 constants and variables
 const PLAYER_ONE_START_X = 520;
@@ -166,6 +173,7 @@ class Player {
     this.stats = stats;
     this.stocks = PLAYER_STOCKS;
     this.percentage = 0;
+    this.rage = 1;
     this.currentAttack = null;
     this.hitboxes = [];
 
@@ -371,7 +379,10 @@ class Player {
       // Add damage and calculate knockback if there is a collision
       if (hitboxBottom >= hurtboxTop && hitboxTop <= hurtboxBottom && 
       hitboxRight >= hurtboxLeft && hitboxLeft <= hurtboxRight) {
-        this.currentAttack.calculateKnockback(hurtbox);
+
+        // Calculate rage for knockback
+        this.rage = 1 + [(this.percentage - 35)/115 * 0.1];
+        this.currentAttack.calculateKnockback(hurtbox, this.rage);
 
         console.log(hurtbox.percentage);
       }
@@ -880,8 +891,8 @@ class Attack {
     this.y = playerY + this.offsetY;
   }
 
-  // Determine the angle, hitstun, and kncokback of the move
-  calculateKnockback(player) {
+  // Determine the angle, hitstun, and knockback of the move
+  calculateKnockback(player, rage) {
 
     // Make sure that the player isn't invincible
     if (player.state !== "dead" && player.state !== "spawning" && !player.invincible) {
@@ -897,7 +908,8 @@ class Attack {
       let w = player.stats.weight;
       let s = this.growthKnockback / 100;
       let b = this.knockback;
-      let knockback = KNOCKBACK_MULTIPLIER * (((p / 10 + p * d / 20) * 200 / w + 100 * 1.4 + 18) * s + b);
+      let r = rage;
+      let knockback = KNOCKBACK_MULTIPLIER * ((((p / 10 + p * d / 20) * 200 / w + 100 * 1.4 + 18) * s + b) * r);
       let hitstun = knockback * HITSTUN_MULTIPLIER;
 
       // Calculate angle
@@ -905,29 +917,29 @@ class Attack {
       let knockbackAngle = p5.Vector.fromAngle(radianAngle, knockback);
 
       // Calculate Sakurai's Special Angle
-      if (this.angle === 361 || this.angle === -181) {
+      if (this.angle === SAKURAI_SPECIAL_ANGLE_RIGHT || this.angle === SAKURAI_SPECIAL_ANGLE_LEFT) {
 
         // Angle will always be 38 if the enemy is airborne
         if (player.state === "airborne") {
-          this.angle = -38;
+          this.angle = HIGH_KNOCKBACK_ANGLE;
         }
 
         // Grounded angles
         else if (player.touchingTop) {
 
           // Angle will be 0 if the knockback is low and enemy grounded < 66
-          if (knockback < 66 * KNOCKBACK_MULTIPLIER) {
-            this.angle = 0;
+          if (knockback < LOW_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER) {
+            this.angle = LOW_KNOCKBACK_ANGLE;
           }
 
           // Angle will be 38 if the knockback is high and enemy grounded >= 88 
-          else if (knockback >= 88 * KNOCKBACK_MULTIPLIER) {
-            this.angle = -38;
+          else if (knockback >= HIGH_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER) {
+            this.angle = HIGH_KNOCKBACK_ANGLE;
           }
 
-          // Angle will scale linearly if in between 66 and 88
+          // Angle will scale linearly if the knockback is in between 66 and 88
           else {
-
+            this.angle = map(this.angle, LOW_KNOCKBACK_THRESHOLD, HIGH_KNOCKBACK_THRESHOLD, LOW_KNOCKBACK_ANGLE, HIGH_KNOCKBACK_ANGLE);
           }
         }
       }
@@ -937,6 +949,8 @@ class Attack {
       player.velocity.set(knockbackAngle);
       player.hitstunTimer = round(hitstun);
       player.isHit = true;
+
+      console.log(knockback);
     }
   }
 }
@@ -1002,6 +1016,8 @@ function draw() {
   // Display player
   playerOne.display();
   playerTwo.display();
+
+  console.log(playerOne.rage);
 }
 
 // Handle player input for single events
