@@ -50,8 +50,7 @@ const ANGEL_PLATFORM_TIMER = 300;
 const PLAYER_STOCKS = 3;
 const KNOCKBACK_MULTIPLIER = 0.1;
 const HITSTUN_MULTIPLIER = 0.4;
-const SAKURAI_SPECIAL_ANGLE_RIGHT = 361;
-const SAKURAI_SPECIAL_ANGLE_LEFT = -181;
+const SAKURAI_SPECIAL_ANGLE = 361;
 const LOW_KNOCKBACK_ANGLE = 0;
 const HIGH_KNOCKBACK_ANGLE = -38;
 const LOW_KNOCKBACK_THRESHOLD = 66;
@@ -181,7 +180,7 @@ class Player {
     this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, spawning, attacking, hitstun
 
     // Flags/Conditions
-    this.direction = true;
+    this.direction = true; // Right
     this.jumpSquatting = false;
     this.jumpAvailable = true;
     this.doubleJumpAvailable = false;
@@ -381,7 +380,7 @@ class Player {
 
         // Calculate rage for knockback
         this.rage = 1 + (this.percentage - 35)/115 * 0.1;
-        this.currentAttack.calculateKnockback(hurtbox, this.rage);
+        this.currentAttack.calculateKnockback(this, hurtbox, this.rage);
 
         console.log("percent", hurtbox.percentage);
       }
@@ -679,13 +678,13 @@ class Player {
     // Move right
     if (keyIsDown(this.controls.right)) {
       this.acceleration.add(this.stats.initialDash, 0);
-      this.direction = true;
+      this.direction = true; // Right
     }
 
     // Move left
     if (keyIsDown(this.controls.left)) {
       this.acceleration.add(-this.stats.initialDash, 0);
-      this.direction = false;
+      this.direction = false; // Left
     }
   }
 
@@ -879,7 +878,7 @@ class Attack {
       currentOffsetX = this.offsetX;
     }
 
-    // Determine the angle based of the player's direction
+    // Determine the angle based of the player's direction for normal attacks
     if (!playerDirection) {
       this.currentAngle = 180 - this.angle;
     }
@@ -893,21 +892,21 @@ class Attack {
   }
 
   // Determine the angle, hitstun, and knockback of the move
-  calculateKnockback(player, rage) {
+  calculateKnockback(attacker, defender, rage) {
 
     // Make sure that the player isn't invincible
-    if (player.state !== "dead" && player.state !== "spawning" && !player.invincible) {
+    if (defender.state !== "dead" && defender.state !== "spawning" && !defender.invincible) {
 
       // Only calculate for one frame
       if (!this.hasHit) {
 
         // Add damage
-        player.percentage += this.damage;
+        defender.percentage += this.damage;
 
         // Calculate knockback and hitstun
-        let p = player.percentage;
+        let p = defender.percentage;
         let d = this.damage;
-        let w = player.stats.weight;
+        let w = defender.stats.weight;
         let s = this.growthKnockback / 100;
         let b = this.knockback;
         let r = rage;
@@ -917,11 +916,10 @@ class Attack {
         // Calculate Sakurai's Special Angle
         let sakuraiAngle = this.angle;
   
-        if (this.angle === SAKURAI_SPECIAL_ANGLE_RIGHT || this.angle === SAKURAI_SPECIAL_ANGLE_LEFT) {
-          
+        if (this.angle === SAKURAI_SPECIAL_ANGLE) {
           
           // Grounded angles
-          if (player.touchingTop) {
+          if (defender.touchingTop) {
             
             // Angle will be 0 if the knockback is low and enemy grounded < 66
             if (knockback < LOW_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER) {
@@ -935,7 +933,7 @@ class Attack {
             
             // Angle will scale linearly if the knockback is in between 66 and 88
             else {
-              sakuraiAngle = map(0, LOW_KNOCKBACK_THRESHOLD, HIGH_KNOCKBACK_THRESHOLD, LOW_KNOCKBACK_ANGLE, HIGH_KNOCKBACK_ANGLE);
+              sakuraiAngle = map(knockback, LOW_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER, HIGH_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER, LOW_KNOCKBACK_ANGLE, HIGH_KNOCKBACK_ANGLE);
             }
           }
 
@@ -945,8 +943,8 @@ class Attack {
           }
         }
 
-        // Fix direction after calculating angle
-        if (this.currentAngle === 180 - this.angle) {
+        // Fix direction after calculating angle for Sakurai Angle attacks
+        if (!attacker.direction) {
           sakuraiAngle = 180 - sakuraiAngle;
         }
   
@@ -955,10 +953,10 @@ class Attack {
         let knockbackAngle = p5.Vector.fromAngle(radianAngle, knockback);
         
         // Put the player who got hit into hitstun
-        player.state = "hitstun";
+        defender.state = "hitstun";
         this.hasHit = true;
-        player.velocity.set(knockbackAngle);
-        player.hitstunTimer = round(hitstun);
+        defender.velocity.set(knockbackAngle);
+        defender.hitstunTimer = round(hitstun);
   
         console.log("knockback", knockback);
         console.log("angle", sakuraiAngle);
