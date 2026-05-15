@@ -28,7 +28,7 @@
 // https://www.youtube.com/watch?v=6JYnDGh5mCE&list=PLYzPRovwO_fOl0WuwqizjhPLbIwnks8Lg&index=6 - music
 
 // Things to do:
-// 1. Knockback just feels wrong
+// 1. Knockback just feels wrong / Add proper exits from cases / fix no double jump after getting hit
 // 2. Refactor stage into a class
 // 3. fix spawning x and y to be different for both players
 // 4. prevent negative stocks
