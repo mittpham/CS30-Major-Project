@@ -28,7 +28,7 @@
 // https://www.youtube.com/watch?v=6JYnDGh5mCE&list=PLYzPRovwO_fOl0WuwqizjhPLbIwnks8Lg&index=6 - music
 
 // Things to do:
-// 1. Knockback just feels wrong / Add proper exits from cases / fix no double jump after getting hit
+// 1. fix moving after hitstun / fix no double jump after getting hit
 // 2. Refactor stage into a class
 // 3. fix spawning x and y to be different for both players
 // 4. prevent negative stocks
@@ -379,7 +379,7 @@ class Player {
       hitboxRight >= hurtboxLeft && hitboxLeft <= hurtboxRight) {
 
         // Calculate rage for knockback
-        this.rage = 1 + (this.percentage - 35)/115 * 0.1;
+        this.rage = constrain(1 + (this.percentage - 35)/115 * 0.1, 1, 1.1);
         this.currentAttack.calculateKnockback(this, hurtbox, this.rage);
 
         console.log("percent", hurtbox.percentage);
@@ -433,6 +433,10 @@ class Player {
         this.stocks--;
       }
 
+      if (this.hitstunTimer > 0) {
+        this.state = "hitstun";
+      }
+
       break;
 
     // running state behaviors and triggers
@@ -474,6 +478,10 @@ class Player {
         this.stocks--;
       }
 
+      if (this.hitstunTimer > 0) {
+        this.state = "hitstun";
+      }
+
       break;
 
       // crouching state behaviors and triggers
@@ -497,6 +505,10 @@ class Player {
           this.stats.currentHeight = this.stats.idleHeight;
         }
       } 
+
+      if (this.hitstunTimer > 0) {
+        this.state = "hitstun";
+      }
 
       break;
 
@@ -531,6 +543,10 @@ class Player {
         this.stocks--;
       }
 
+      if (this.hitstunTimer > 0) {
+        this.state = "hitstun";
+      }
+
       break;
 
     // jumpSquat state behaviours and trigger
@@ -548,6 +564,10 @@ class Player {
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
         this.state = "dead";
         this.stocks--;
+      }
+    
+      if (this.hitstunTimer > 0) {
+        this.state = "hitstun";
       }
 
       break;
@@ -581,6 +601,10 @@ class Player {
         this.stocks--;
       }
 
+      if (this.hitstunTimer > 0) {
+        this.state = "hitstun";
+      }
+
       break;
 
     // attacking state behavior
@@ -608,6 +632,10 @@ class Player {
       // State triggers
       if (this.hitboxes.length === 0) {
         this.state = "idle";
+      }
+
+      if (this.hitstunTimer > 0) {
+        this.state = "hitstun";
       }
       
       break;
@@ -943,13 +971,23 @@ class Attack {
           }
         }
 
+        // Determine the final angle to use for knockback
+        let finalAngle = null;
+
+        if (this.angle === SAKURAI_SPECIAL_ANGLE) {
+          finalAngle = sakuraiAngle;
+        }
+        else {
+          finalAngle = this.currentAngle;
+        }
+
         // Fix direction after calculating angle for Sakurai Angle attacks
-        if (!attacker.direction) {
-          sakuraiAngle = 180 - sakuraiAngle;
+        if (this.angle === SAKURAI_SPECIAL_ANGLE && !attacker.direction) {
+          finalAngle = 180 - finalAngle;
         }
   
         // Calculate angle
-        let radianAngle = radians(sakuraiAngle);
+        let radianAngle = radians(finalAngle);
         let knockbackAngle = p5.Vector.fromAngle(radianAngle, knockback);
         
         // Put the player who got hit into hitstun
