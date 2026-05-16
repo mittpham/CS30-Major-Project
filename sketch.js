@@ -28,12 +28,13 @@
 // https://www.youtube.com/watch?v=6JYnDGh5mCE&list=PLYzPRovwO_fOl0WuwqizjhPLbIwnks8Lg&index=6 - music
 
 // Things to do:
-// 1. fix moving after hitstun / fix no double jump after getting hit
+// 1. fix moving after hitstun
+// Hitstun issue is mostly likely caused by the knockback multiplier
+// Try doing all the logic first and then applying the knockback multiplier after
 // 2. Refactor stage into a class
-// 3. fix spawning x and y to be different for both players
-// 4. prevent negative stocks
-// 5. Adjust marths stats
-// 6. Fix the ratio for stage - 1 meter in game is about 16 pixels
+// 3. create a game over
+// 4. Adjust marths stats
+// 5. Fix the ratio for stage - 1 meter in game is about 16 pixels
 
 
 // Canvas constants
@@ -162,7 +163,7 @@ let marthForwardTilt = {
 
 // Create the base player
 class Player {
-  constructor(x, y, stats, controls) {
+  constructor(x, y, stats, controls, spawnX, spawnY) {
 
     // Physics and stats
     this.controls = controls;
@@ -175,6 +176,8 @@ class Player {
     this.rage = 1;
     this.currentAttack = null;
     this.hitboxes = [];
+    this.spawnX = spawnX;
+    this.spawnY = spawnY;
 
     // States
     this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, spawning, attacking, hitstun
@@ -295,10 +298,10 @@ class Player {
   checkStageCollision() {
 
     // Player edges
-    let playerBottom = this.position.y + this.stats.currentHeight / 2 + this.velocity.y;
-    let playerTop = this.position.y - this.stats.currentHeight / 2 + this.velocity.y;
-    let playerRight = this.position.x + this.stats.width / 2 + this.velocity.x;
-    let playerLeft = this.position.x - this.stats.width / 2 + this.velocity.x;
+    let playerBottom = this.position.y + this.stats.currentHeight / 2;
+    let playerTop = this.position.y - this.stats.currentHeight / 2;
+    let playerRight = this.position.x + this.stats.width / 2;
+    let playerLeft = this.position.x - this.stats.width / 2;
 
     // Stage edges
     let stageBottom = STAGE_Y + STAGE_HEIGHT;
@@ -379,10 +382,8 @@ class Player {
       hitboxRight >= hurtboxLeft && hitboxLeft <= hurtboxRight) {
 
         // Calculate rage for knockback
-        this.rage = constrain(1 + (this.percentage - 35)/115 * 0.1, 1, 1.1);
+        this.rage = constrain(1 + (this.percentage - 35)/115 * 0.1, 1, 1.1); // Smash Bros rage formula
         this.currentAttack.calculateKnockback(this, hurtbox, this.rage);
-
-        console.log("percent", hurtbox.percentage);
       }
       // Reset the hit flag
       else {
@@ -430,7 +431,9 @@ class Player {
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
         this.state = "dead";
-        this.stocks--;
+        if (this.stocks > 0) {
+          this.stocks--;
+        }
       }
 
       if (this.hitstunTimer > 0) {
@@ -475,7 +478,9 @@ class Player {
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
         this.state = "dead";
-        this.stocks--;
+        if (this.stocks > 0) {
+          this.stocks--;
+        }
       }
 
       if (this.hitstunTimer > 0) {
@@ -540,7 +545,9 @@ class Player {
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
         this.state = "dead";
-        this.stocks--;
+        if (this.stocks > 0) {
+          this.stocks--;
+        }
       }
 
       if (this.hitstunTimer > 0) {
@@ -563,7 +570,9 @@ class Player {
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
         this.state = "dead";
-        this.stocks--;
+        if (this.stocks > 0) {
+          this.stocks--;
+        }
       }
     
       if (this.hitstunTimer > 0) {
@@ -598,7 +607,9 @@ class Player {
 
       if (this.position.x > RIGHT_BLAST_ZONE || this.position.x < LEFT_BLAST_ZONE || this.position.y > BOTTOM_BLAST_ZONE || this.position.y < TOP_BLAST_ZONE) {
         this.state = "dead";
-        this.stocks--;
+        if (this.stocks > 0) {
+          this.stocks--;
+        }
       }
 
       if (this.hitstunTimer > 0) {
@@ -667,7 +678,7 @@ class Player {
       }
 
       if (keyIsDown(this.controls.left) || keyIsDown(this.controls.right) || this.angelPlatformTimer <= 0) {
-        this.angelPlatformTimer = 300;
+        this.angelPlatformTimer = ANGEL_PLATFORM_TIMER;
         this.state = "airborne";
       }
 
@@ -832,8 +843,8 @@ class Player {
     this.angelPlatformTimer--;
 
     // Reset player position
-    this.position.x = PLAYER_ONE_SPAWN_X;
-    this.position.y = PLAYER_ONE_SPAWN_Y;
+    this.position.x = this.spawnX;
+    this.position.y = this.spawnY;
 
     // Halt all movement
     this.acceleration.mult(0);
@@ -938,7 +949,7 @@ class Attack {
         let s = this.growthKnockback / 100;
         let b = this.knockback;
         let r = rage;
-        let knockback = KNOCKBACK_MULTIPLIER * ((((((p / 10) + (p * d / 20)) * 200 / (w + 100)) * 1.4) + 18) * s + b) * r;
+        let knockback = KNOCKBACK_MULTIPLIER * ((((((p / 10) + (p * d / 20)) * 200 / (w + 100)) * 1.4) + 18) * s + b) * r; // Smash Bros knockback formula
         let hitstun = knockback * HITSTUN_MULTIPLIER;
         
         // Calculate Sakurai's Special Angle
@@ -995,9 +1006,11 @@ class Attack {
         this.hasHit = true;
         defender.velocity.set(knockbackAngle);
         defender.hitstunTimer = round(hitstun);
-  
-        console.log("knockback", knockback);
-        console.log("angle", sakuraiAngle);
+
+        if (defender.jumpAvailable) {
+          defender.jumpAvailable = false;
+          defender.doubleJumpAvailable = true;
+        }
       }
     }
   }
@@ -1032,11 +1045,11 @@ function setup() {
 
   // Create player 1
   playerOne = new Player(PLAYER_ONE_START_X, PLAYER_ONE_START_Y - playerOneMarthStats.currentHeight / 2, 
-    playerOneMarthStats, playerOneControls);
+    playerOneMarthStats, playerOneControls, PLAYER_ONE_SPAWN_X, PLAYER_ONE_SPAWN_Y);
 
   // Create player 2
   playerTwo = new Player(PLAYER_TWO_START_X, PLAYER_TWO_START_Y - playerTwoMarthStats.currentHeight / 2, 
-    playerTwoMarthStats, playerTwoControls);
+    playerTwoMarthStats, playerTwoControls, PLAYER_TWO_SPAWN_X, PLAYER_TWO_SPAWN_Y);
 
   // Create stage
   rectMode(CORNER);
@@ -1064,86 +1077,98 @@ function draw() {
   // Display player
   playerOne.display();
   playerTwo.display();
+
+  console.log(playerOne.doubleJumpAvailable);
 }
 
 // Handle player input for single events
 function keyPressed() {
 
   // PLAYER ONE CONTROLS
-  // Jumping
-  if (keyCode === playerOne.controls.up || keyCode === playerOne.controls.shortHop) {
 
-    // Angel platform jump
-    if (playerOne.state === "spawning") {
-      playerOne.state = "airborne";
-      playerOne.doubleJump();
+  // make sure the player isn't stuck in hitstun or dead
+  if (playerOne.state !== "hitstun" && playerOne.state !== "dead") {
+
+    // Jumping
+    if (keyCode === playerOne.controls.up || keyCode === playerOne.controls.shortHop) {
+
+      // Angel platform jump
+      if (playerOne.state === "spawning") {
+        playerOne.state = "airborne";
+        playerOne.doubleJump();
+      }
+
+      // Ground jump
+      else if (playerOne.jumpAvailable) {
+        playerOne.jumpSquatting = true;
+      }
+
+      // Double jump
+      else if (playerOne.doubleJumpAvailable) {
+        playerOne.doubleJump();
+      }
     }
 
-    // Ground jump
-    else if (playerOne.jumpAvailable) {
-      playerOne.jumpSquatting = true;
+    // Fast falling
+    if (keyCode === playerOne.controls.down) {
+
+      // Check that player is airborne
+      if (playerOne.state === "airborne") {
+        playerOne.fastFall();
+      }
     }
 
-    // Double jump
-    else if (playerOne.doubleJumpAvailable) {
-      playerOne.doubleJump();
-    }
-  }
+    // Attacking
+    if (keyCode === playerOne.controls.attack) {
 
-  // Fast falling
-  if (keyCode === playerOne.controls.down) {
-
-    // Check that player is airborne
-    if (playerOne.state === "airborne") {
-      playerOne.fastFall();
-    }
-  }
-
-  // Attacking
-  if (keyCode === playerOne.controls.attack) {
-
-    // Make sure the player isn't currently attacking and grounded
-    if (playerOne.state === "idle") {
-      playerOne.spawnHitbox();
+      // Make sure the player isn't currently attacking and grounded
+      if (playerOne.state === "idle") {
+        playerOne.spawnHitbox();
+      }
     }
   }
 
   // PLAYER TWO CONTROLS
-  // Jumping
-  if (keyCode === playerTwo.controls.up || keyCode === playerTwo.controls.shortHop) {
 
-    // Angel platform jump
-    if (playerTwo.state === "spawning") {
-      playerTwo.state = "airborne";
-      playerTwo.doubleJump();
+  // make sure the player isn't stuck in hitstun or dead
+  if (playerTwo.state !== "hitstun" && playerTwo.state !== "dead") {
+
+    // Jumping
+    if (keyCode === playerTwo.controls.up || keyCode === playerTwo.controls.shortHop) {
+
+      // Angel platform jump
+      if (playerTwo.state === "spawning") {
+        playerTwo.state = "airborne";
+        playerTwo.doubleJump();
+      }
+
+      // Ground jump
+      else if (playerTwo.jumpAvailable) {
+        playerTwo.jumpSquatting = true;
+      }
+
+      // Double jump
+      else if (playerTwo.doubleJumpAvailable) {
+        playerTwo.doubleJump();
+      }
     }
 
-    // Ground jump
-    else if (playerTwo.jumpAvailable) {
-      playerTwo.jumpSquatting = true;
+    // Fast falling
+    if (keyCode === playerTwo.controls.down) {
+
+      // Check that player is airborne
+      if (playerTwo.state === "airborne") {
+        playerTwo.fastFall();
+      }
     }
 
-    // Double jump
-    else if (playerTwo.doubleJumpAvailable) {
-      playerTwo.doubleJump();
-    }
-  }
+    // Attacking
+    if (keyCode === playerTwo.controls.attack) {
 
-  // Fast falling
-  if (keyCode === playerTwo.controls.down) {
-
-    // Check that player is airborne
-    if (playerTwo.state === "airborne") {
-      playerTwo.fastFall();
-    }
-  }
-
-  // Attacking
-  if (keyCode === playerTwo.controls.attack) {
-
-    // Make sure the player isn't currently attacking and grounded
-    if (playerTwo.state === "idle") {
-      playerTwo.spawnHitbox();
+      // Make sure the player isn't currently attacking and grounded
+      if (playerTwo.state === "idle") {
+        playerTwo.spawnHitbox();
+      }
     }
   }
 }
