@@ -29,8 +29,6 @@
 
 // Things to do:
 // 1. fix moving after hitstun
-// Hitstun issue is mostly likely caused by the knockback multiplier
-// Try doing all the logic first and then applying the knockback multiplier after
 // 2. Refactor stage into a class
 // 3. create a game over
 // 4. Adjust marths stats
@@ -101,6 +99,8 @@ const TOP_BLAST_ZONE = -25;
 const BOTTOM_BLAST_ZONE = 835;
 const LEFT_BLAST_ZONE = -25;
 const RIGHT_BLAST_ZONE = 1465;
+
+let stage;
 
 // Marth stats
 let playerOneMarthStats = {
@@ -304,10 +304,10 @@ class Player {
     let playerLeft = this.position.x - this.stats.width / 2;
 
     // Stage edges
-    let stageBottom = STAGE_Y + STAGE_HEIGHT;
-    let stageTop = STAGE_Y;
-    let stageRight = STAGE_X + STAGE_WIDTH;
-    let stageLeft = STAGE_X;
+    let stageBottom = stage.y + stage.h;
+    let stageTop = stage.y;
+    let stageRight = stage.x + stage.w;
+    let stageLeft = stage.x;
 
     // Reset touching flags
     this.touchingBottom = false;
@@ -692,6 +692,10 @@ class Player {
         this.stats.color = "red";
       }
 
+      if (this.touchingTop) {
+        this.addFriction();
+      }
+
       // Count hitstun frames
       this.hitstunTimer--;
 
@@ -949,8 +953,9 @@ class Attack {
         let s = this.growthKnockback / 100;
         let b = this.knockback;
         let r = rage;
-        let knockback = KNOCKBACK_MULTIPLIER * ((((((p / 10) + (p * d / 20)) * 200 / (w + 100)) * 1.4) + 18) * s + b) * r; // Smash Bros knockback formula
-        let hitstun = knockback * HITSTUN_MULTIPLIER;
+        let rawKnockback = ((((((p / 10) + (p * d / 20)) * 200 / (w + 100)) * 1.4) + 18) * s + b) * r; // Smash Bros knockback formula
+        let scaledKnockback = rawKnockback * KNOCKBACK_MULTIPLIER;
+        let hitstun = rawKnockback * HITSTUN_MULTIPLIER * KNOCKBACK_MULTIPLIER;
         
         // Calculate Sakurai's Special Angle
         let sakuraiAngle = this.angle;
@@ -961,18 +966,18 @@ class Attack {
           if (defender.touchingTop) {
             
             // Angle will be 0 if the knockback is low and enemy grounded < 66
-            if (knockback < LOW_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER) {
+            if (rawKnockback < LOW_KNOCKBACK_THRESHOLD) {
               sakuraiAngle = LOW_KNOCKBACK_ANGLE;
             }
             
             // Angle will be 38 if the knockback is high and enemy grounded >= 88 
-            else if (knockback >= HIGH_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER) {
+            else if (rawKnockback >= HIGH_KNOCKBACK_THRESHOLD) {
               sakuraiAngle = HIGH_KNOCKBACK_ANGLE;
             }
             
             // Angle will scale linearly if the knockback is in between 66 and 88
             else {
-              sakuraiAngle = map(knockback, LOW_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER, HIGH_KNOCKBACK_THRESHOLD * KNOCKBACK_MULTIPLIER, LOW_KNOCKBACK_ANGLE, HIGH_KNOCKBACK_ANGLE);
+              sakuraiAngle = map(rawKnockback, LOW_KNOCKBACK_THRESHOLD, HIGH_KNOCKBACK_THRESHOLD, LOW_KNOCKBACK_ANGLE, HIGH_KNOCKBACK_ANGLE);
             }
           }
 
@@ -999,7 +1004,7 @@ class Attack {
   
         // Calculate angle
         let radianAngle = radians(finalAngle);
-        let knockbackAngle = p5.Vector.fromAngle(radianAngle, knockback);
+        let knockbackAngle = p5.Vector.fromAngle(radianAngle, scaledKnockback);
         
         // Put the player who got hit into hitstun
         defender.state = "hitstun";
@@ -1030,12 +1035,14 @@ class Stage {
 
   // Show the stage
   display() {
-
+    rectMode(CORNER);
+    fill("white");
+    rect(this.x, this.y, this.w, this.h);
   }
 
   // Go through animation frames
   update() {
-
+    // Nice to have stuff
   }
 }
 
@@ -1052,9 +1059,7 @@ function setup() {
     playerTwoMarthStats, playerTwoControls, PLAYER_TWO_SPAWN_X, PLAYER_TWO_SPAWN_Y);
 
   // Create stage
-  rectMode(CORNER);
-  fill("white");
-  rect(STAGE_X, STAGE_Y, STAGE_WIDTH, STAGE_HEIGHT);
+  stage = new Stage(STAGE_X, STAGE_Y, STAGE_WIDTH, STAGE_HEIGHT, 100);
 }
 
 // Manage players
@@ -1063,9 +1068,8 @@ function draw() {
   noStroke();
 
   // Draw stage
-  rectMode(CORNER);
-  fill("white");
-  rect(STAGE_X, STAGE_Y, STAGE_WIDTH, STAGE_HEIGHT);
+  stage.update();
+  stage.display();
 
   // Update player states and movement
   playerOne.update(playerTwo);
