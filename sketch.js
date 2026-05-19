@@ -29,11 +29,10 @@
 
 // Things to do:
 // 1. fix moving after hitstun
-// 2. Refactor stage into a class
+// 2. add sounds
 // 3. create a game over
 // 4. Adjust marths stats
 // 5. Fix the ratio for stage - 1 meter in game is about 16 pixels
-
 
 // Canvas constants
 const SCREEN_WIDTH = 1440;
@@ -47,7 +46,7 @@ const SPAWNING_TIMER = 30;
 const INVINCIBILITY_TIMER = 120;
 const ANGEL_PLATFORM_TIMER = 300;
 const PLAYER_STOCKS = 3;
-const KNOCKBACK_MULTIPLIER = 0.1;
+const KNOCKBACK_MULTIPLIER = 0.2;
 const HITSTUN_MULTIPLIER = 0.4;
 const SAKURAI_SPECIAL_ANGLE = 361;
 const LOW_KNOCKBACK_ANGLE = 0;
@@ -61,6 +60,9 @@ const PLAYER_ONE_START_Y = 600;
 const PLAYER_ONE_SPAWN_X = 520;
 const PLAYER_ONE_SPAWN_Y = 200;
 
+let playerOne;
+
+// Player 1 controls
 let playerOneControls = {
   left: 65, // A key
   right: 68, // D key
@@ -70,14 +72,15 @@ let playerOneControls = {
   attack: 85, // U key
 };
 
-let playerOne;
-
 // Player 2 constants and variables
 const PLAYER_TWO_START_X = 920;
 const PLAYER_TWO_START_Y = 600;
 const PLAYER_TWO_SPAWN_X = 920;
 const PLAYER_TWO_SPAWN_Y = 200;
 
+let playerTwo;
+
+// Player 2 controls
 let playerTwoControls = {
   left: 37, // Left arrow
   right: 39, // Right arrow
@@ -86,8 +89,6 @@ let playerTwoControls = {
   shortHop: 36, // Home / Numberpad 7
   attack: 191, // Slash
 };
-
-let playerTwo;
 
 // Stage constants and variables
 const STAGE_X = 320;
@@ -101,6 +102,18 @@ const LEFT_BLAST_ZONE = -25;
 const RIGHT_BLAST_ZONE = 1465;
 
 let stage;
+
+// Sounds
+let backgroundMusic;
+let marthAppear;
+let marthRun;
+let marthSourHit;
+let marthSweetHit;
+let marthSwing;
+let marthJump;
+let marthLand;
+let marthHurt;
+let marthSquat;
 
 // Marth stats
 let playerOneMarthStats = {
@@ -163,7 +176,7 @@ let marthForwardTilt = {
 
 // Create the base player
 class Player {
-  constructor(x, y, stats, controls, spawnX, spawnY) {
+  constructor(x, y, stats, controls, sounds, spawnX, spawnY) {
 
     // Physics and stats
     this.controls = controls;
@@ -178,6 +191,7 @@ class Player {
     this.hitboxes = [];
     this.spawnX = spawnX;
     this.spawnY = spawnY;
+    this.sounds = sounds;
 
     // States
     this.state = "idle"; // idle, running, crouching, airborne, jumpsquat, landing, dead, spawning, attacking, hitstun
@@ -421,6 +435,9 @@ class Player {
         this.state = "crouching";
         this.stats.currentHeight = this.stats.crouchHeight;
         this.position.y += this.stats.offsetCrouchHeight;
+
+        // Play sound
+        this.playSound("squat");
       }
 
       if (!this.touchingTop) {
@@ -464,6 +481,9 @@ class Player {
         this.state = "crouching";
         this.stats.currentHeight = this.stats.crouchHeight;
         this.position.y += this.stats.offsetCrouchHeight;
+
+        // Play sound
+        this.playSound("squat");
       }
 
       if (this.jumpSquatting) {
@@ -499,7 +519,6 @@ class Player {
       }
 
       // State triggers
-      
       if (!keyIsDown(this.controls.down)) {
         this.state = "idle";
         this.stats.currentHeight = this.stats.idleHeight;
@@ -509,6 +528,9 @@ class Player {
           this.state = "running";
           this.stats.currentHeight = this.stats.idleHeight;
         }
+
+        // Play sound
+        this.playSound("rise");
       } 
 
       if (this.hitstunTimer > 0) {
@@ -586,6 +608,9 @@ class Player {
 
       // State behaviour
       this.addFriction();
+
+      // Play sound
+      this.playSound("land");
 
       // Start timer
       this.landingLagTimer--;
@@ -722,12 +747,18 @@ class Player {
     if (keyIsDown(this.controls.right)) {
       this.acceleration.add(this.stats.initialDash, 0);
       this.direction = true; // Right
+
+      // Play sound
+      this.playSound("run");
     }
 
     // Move left
     if (keyIsDown(this.controls.left)) {
       this.acceleration.add(-this.stats.initialDash, 0);
       this.direction = false; // Left
+
+      // Play sound
+      this.playSound("run");
     }
   }
 
@@ -793,6 +824,9 @@ class Player {
         this.velocity.y = this.stats.shortHopPower;
       }
 
+      // Play sound
+      this.playSound("jump");
+
       // Disable ground jump and unlock double jump
       this.jumpAvailable = false;
       this.doubleJumpAvailable = true;
@@ -803,6 +837,9 @@ class Player {
   doubleJump() {
     if (this.doubleJumpAvailable) {
       this.velocity.y = this.stats.doubleJumpPower;
+
+      // Play sound
+      this.playSound("doubleJump");
 
       // Disable double jump and fast falling
       this.fastFalling = false;
@@ -820,6 +857,9 @@ class Player {
     this.hitboxes.push(this.currentAttack);
     this.currentAttack.hasHit = false;
     this.state = "attacking";
+    
+    // Play sound
+    this.playSound("swing");
   }
 
   // Reset player if dead
@@ -857,6 +897,15 @@ class Player {
     // Make player white to show invincibility
     if (this.invincible) {
       this.stats.color = "white";
+    }
+  }
+
+  // Manage the sounds of the player
+  playSound(soundName) {
+
+    // Make sure that the sound isn't playing and exists
+    if (this.sounds[soundName] && !this.sounds[soundName].isPlaying()) {
+      this.sounds[soundName].play();
     }
   }
 }
@@ -1009,6 +1058,11 @@ class Attack {
         // Put the player who got hit into hitstun
         defender.state = "hitstun";
         this.hasHit = true;
+
+        // Play sound
+        attacker.playSound("sweet");
+
+        // Add hitstun and vector
         defender.velocity.set(knockbackAngle);
         defender.hitstunTimer = round(hitstun);
 
@@ -1046,17 +1100,61 @@ class Stage {
   }
 }
 
+// Load sounds and sprites
+function preload() {
+  backgroundMusic = loadSound("assets/stage/backgroundmusic.mp3");
+  marthAppear = loadSound("assets/marth/sounds/marthappear.mp3");
+  marthRun = loadSound("assets/marth/sounds/marthrun1.mp3");
+  marthSweetHit = loadSound("assets/marth/sounds/marthsweetspot.mp3");
+  marthSwing = loadSound("assets/marth/sounds/marthswing.mp3");
+  marthJump = loadSound("assets/marth/sounds/marthjump.mp3");
+  marthDoubleJump = loadSound("assets/marth/sounds/marthdoublejump.mp3");
+  marthLand = loadSound("assets/marth/sounds/marthland.mp3");
+  marthSquat = loadSound("assets/marth/sounds/marthsquat.mp3");
+  marthRise = loadSound("assets/marth/sounds/marthrise.mp3");
+}
+
 // Setup player
 function setup() {
   createCanvas(SCREEN_WIDTH, SCREEN_HEIGHT);
 
+  // Start background music
+  backgroundMusic.loop();
+  backgroundMusic.setVolume(0.1);
+  
+  // Player 1 sounds
+  let playerOneSounds = {
+    appear: marthAppear,
+    jump: marthJump,
+    doubleJump: marthDoubleJump,
+    land: marthLand,
+    run: marthRun,
+    squat: marthSquat,
+    rise: marthRise,
+    sweet: marthSweetHit,
+    swing: marthSwing,
+  };
+  
+  // Player 2 sounds
+  let playerTwoSounds = {
+    appear: marthAppear,
+    jump: marthJump,
+    doubleJump: marthDoubleJump,
+    land: marthLand,
+    run: marthRun,
+    squat: marthSquat,
+    rise: marthRise,
+    sweet: marthSweetHit,
+    swing: marthSwing,
+  };
+
   // Create player 1
   playerOne = new Player(PLAYER_ONE_START_X, PLAYER_ONE_START_Y - playerOneMarthStats.currentHeight / 2, 
-    playerOneMarthStats, playerOneControls, PLAYER_ONE_SPAWN_X, PLAYER_ONE_SPAWN_Y);
+    playerOneMarthStats, playerOneControls, playerOneSounds, PLAYER_ONE_SPAWN_X, PLAYER_ONE_SPAWN_Y);
 
   // Create player 2
   playerTwo = new Player(PLAYER_TWO_START_X, PLAYER_TWO_START_Y - playerTwoMarthStats.currentHeight / 2, 
-    playerTwoMarthStats, playerTwoControls, PLAYER_TWO_SPAWN_X, PLAYER_TWO_SPAWN_Y);
+    playerTwoMarthStats, playerTwoControls, playerTwoSounds, PLAYER_TWO_SPAWN_X, PLAYER_TWO_SPAWN_Y);
 
   // Create stage
   stage = new Stage(STAGE_X, STAGE_Y, STAGE_WIDTH, STAGE_HEIGHT, 100);
@@ -1081,8 +1179,6 @@ function draw() {
   // Display player
   playerOne.display();
   playerTwo.display();
-
-  console.log(playerOne.doubleJumpAvailable);
 }
 
 // Handle player input for single events
